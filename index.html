@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Карта Городка</title>
+  <style>
+  :root {
+    --ui-bg: rgba(255, 255, 255, 0.9);
+    --ui-text: #000;
+    --ui-hover: #f0f0f0;
+  }
+  [data-theme="dark"] {
+    --ui-bg: rgba(30, 30, 30, 0.9);
+    --ui-text: #fff;
+    --ui-hover: #444;
+  }
+
+  body { 
+    margin: 0; 
+    overflow: hidden; 
+    background: #000; 
+    font-family: sans-serif; 
+  }
+  
+  #ui-layer {
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    z-index: 1000; 
+    pointer-events: none;
+  }
+
+  .search-container {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(90%, 500px);
+    pointer-events: auto;
+    z-index: 1001;
+  }
+
+  #search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: none;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    font-size: 16px;
+    outline: none;
+    pointer-events: auto;
+  }
+
+  #search-results {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--ui-bg);
+    border-radius: 10px;
+    margin-top: 5px;
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    pointer-events: auto;
+    z-index: 1002;
+    position: absolute;
+  }
+
+  #search-results::-webkit-scrollbar {
+    display: none;
+  }
+
+  #search-results {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .result-item {
+    padding: 12px 15px;
+    color: var(--ui-text);
+    cursor: pointer;
+    border-bottom: 1px solid rgba(128,128,128,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    line-height: 1.4;
+    pointer-events: auto;
+  }
+
+  .result-item:hover {
+    background: var(--ui-hover);
+  }
+
+  .result-name {
+    flex: 1;
+    word-break: break-word;
+  }
+
+  .result-type {
+    opacity: 0.5;
+    font-size: 11px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: rgba(128,128,128,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .highlight {
+    color: #ff4757;
+    font-weight: bold;
+  }
+
+  #search-input::-webkit-calendar-picker-indicator {
+    display: none !important;
+  }
+
+  .controls {
+    position: absolute; 
+    right: 20px; 
+    top: 50%; 
+    transform: translateY(-50%);
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+    pointer-events: auto;
+    z-index: 1001;
+  }
+
+  .btn {
+    width: 50px; 
+    height: 50px; 
+    border-radius: 50%; 
+    border: none;
+    background: var(--ui-bg); 
+    color: var(--ui-text);
+    cursor: pointer; 
+    font-size: 20px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+  }
+
+  .btn:hover {
+    transform: scale(1.05);
+  }
+
+  .btn:active {
+    transform: scale(0.95);
+  }
+
+  /* Для предотвращения выделения текста при кликах */
+  canvas {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  /* Адаптивность для мобильных устройств */
+  @media (max-width: 768px) {
+    .search-container {
+      top: 10px;
+      width: calc(100% - 40px);
+      left: 20px;
+      transform: none;
+    }
+    
+    .controls {
+      top: auto;
+      bottom: 20px;
+      right: 50%;
+      transform: translateX(50%);
+      flex-direction: row;
+      gap: 15px;
+    }
+    
+    .btn {
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+    }
+    
+    #search-input {
+      padding: 15px 20px;
+      font-size: 18px;
+    }
+    
+    .result-item {
+      padding: 15px;
+      font-size: 16px;
+    }
+  }
+
+  /* Для очень маленьких экранов */
+  @media (max-width: 480px) {
+    .btn {
+      width: 50px;
+      height: 50px;
+      font-size: 20px;
+    }
+    
+    .controls {
+      gap: 10px;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div id="ui-layer" data-theme="dark">
+    <div class="search-container">
+      <input type="text" 
+             id="search-input" 
+             placeholder="Поиск объектов..." 
+             autocomplete="off" 
+             oninput="window.updateSearchSuggestions(this.value)"
+             onkeydown="window.handleSearchEnter(event)">
+      <div id="search-results"></div>
+    </div>
+    
+    <div class="controls">
+      <button class="btn" onclick="toggleMapTheme()" title="Сменить тему">◑</button>
+      <button class="btn" onclick="resetView()" title="На спаун">⌂</button>
+      <button class="btn" onclick="rotateNorth()" title="На север">N</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+  <script src="addScreenPositionFunction.js"></script>
+  <script src="global.js"></script>
+  <script src="base_class.js"></script>
+  <script src="class.js"></script>
+  <script src="read_json.js"></script>
+  <script src="draw.js"></script>
+  
+  <!-- Важно: ui-logic.js загружается ПОСЛЕ всех скриптов с данными -->
+  <script src="ui-logic.js"></script>
+  
+  <script src="grdkmap.js"></script>
+
+ <script>
+    // Добавляем глобальные функции для кнопок
+    window.toggleMapTheme = function() {
+      if (typeof theme !== 'undefined') {
+        theme = (theme === "light") ? "dark" : "light";
+        document.getElementById('ui-layer').setAttribute('data-theme', theme);
+        if (typeof applyTheme === 'function') {
+          applyTheme();
+        }
+        if (typeof buildGlobalMesh === 'function') {
+          buildGlobalMesh();
+        }
+      }
+    };
+
+    window.resetView = function() {
+      if (typeof offsetX !== 'undefined') {
+        offsetX = -8;
+        offsetZ = 317;
+        zoom = 4;
+        if (typeof angleY !== 'undefined') angleY = 0;
+        if (typeof angleX !== 'undefined') angleX = Math.PI / 2;
+        
+        // Останавливаем любую анимацию
+        window.isAnimating = false;
+        window.targetX = null;
+        window.targetZ = null;
+      }
+    };
+
+    window.rotateNorth = function() {
+      if (typeof angleY !== 'undefined') {
+        angleY = 0;
+      }
+    };
+    
+    // Обработчик Enter для поиска
+    window.handleSearchEnter = function(event) {
+        if (event.key === 'Enter') {
+            const query = document.getElementById('search-input').value.trim();
+            if (query.length < 2) return;
+            
+            // Вызываем функцию из ui-logic.js
+            if (typeof window.handleSearchEnter === 'function') {
+                window.handleSearchEnter(event);
+            }
+        }
+    };
+</script>
+
+</body>
+</html>
