@@ -337,33 +337,6 @@ function mousePressed() {
     // Ничего не делаем пока
 }
 
-function mouseDragged() {
-    if (dragStartedOnUI || event.target.closest('.search-container') || event.target.closest('.controls')) {
-        return;
-    }
-    if (mouseButton != LEFT) return;
-
-    // Если смещение больше порога — это точно драг
-    if (!isDragging && dist(dragStartX, dragStartY, mouseX, mouseY) > dragThreshold) {
-        isDragging = true;
-    }
-
-    // Обычное перетаскивание карты
-    let sensitivity = 1 / zoom;
-    let deltaX = mouseX - pmouseX;
-    let deltaY = mouseY - pmouseY;
-
-    if (keyPressed && keyIsDown(CONTROL)) {
-        angleY -= deltaX * 0.005;
-        angleX -= deltaY * 0.005;
-        angleX = constrain(angleX, Math.PI/2, Math.PI/1.25);
-    } else {
-        let cosY = Math.cos(angleY);
-        let sinY = Math.sin(angleY);
-        offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity;
-        offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity;
-    }
-}
 
 function mouseReleased() {
     if (mouseButton != LEFT) return;
@@ -535,116 +508,164 @@ function applyTheme() {
     for (let u of underlays) { u.clr = underlayClr }
     for (let a of alleys) { a.clr = alleyClr }
 }
+let initialPinchDistance = 0;
+let initialPinchAngle = 0;
+let initialTwoFingerX = 0;
+let initialTwoFingerY = 0;
+let initialAngleY = 0;
+let initialAngleX = 0;
+let initialZoom = 0;
+
 function touchStarted() {
-    // Получаем элемент по координатам первого касания
-    if (touches.length > 0) {
-        const touch = touches[0];
-        const element = document.elementFromPoint(touch.x, touch.y);
-        if (element && (element.closest('.search-container') || element.closest('.controls'))) {
-            touchStartedOnUI = true;
-            return false;
-        }
+  // Получаем элемент по координатам первого касания
+  if (touches.length > 0) {
+    const touch = touches[0];
+    const element = document.elementFromPoint(touch.x, touch.y);
+    if (element && (element.closest('.search-container') || element.closest('.controls') || element.closest('.mobile-controls'))) {
+      touchStartedOnUI = true;
+      return false;
     }
-    touchStartedOnUI = false;
-    return false;
+  }
+  touchStartedOnUI = false;
+  
+  // Сохраняем начальные значения для жестов двумя пальцами
+  if (touches.length === 2) {
+    // Расстояние между пальцами для зума
+    let dx = touches[0].x - touches[1].x;
+    let dy = touches[0].y - touches[1].y;
+    initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+    initialZoom = zoom;
+    
+    // Угол между пальцами для вращения
+    initialPinchAngle = Math.atan2(dy, dx);
+    
+    // Центр между пальцами для движения
+    initialTwoFingerX = (touches[0].x + touches[1].x) / 2;
+    initialTwoFingerY = (touches[0].y + touches[1].y) / 2;
+    
+    // Сохраняем начальные углы камеры
+    initialAngleY = angleY;
+    initialAngleX = angleX;
+  }
+  
+  return false;
 }
 
 function touchMoved() {
-    if (touchStartedOnUI) {
-        return false;
-    }
-    // 1. One Finger: PAN (Move Map)
-    if (touches.length === 1) {
-        let sensitivity = 1 / zoom;
-        let deltaX = mouseX - pmouseX;
-        let deltaY = mouseY - pmouseY;
-        
-        let cosY = Math.cos(angleY);
-        let sinY = Math.sin(angleY);
-        
-        offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity;
-        offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity;
-    } 
-    // 2. Two Fingers: ZOOM & ROTATE
-    else if (touches.length === 2) {
-        // Current positions
-        let t1 = createVector(touches[0].x, touches[0].y);
-        let t2 = createVector(touches[1].x, touches[1].y);
-        
-        // Previous positions (calculated manually or using p5's pmouse logic if reliable, 
-        // but for multi-touch it's better to store state. 
-        // A simple approach for Zoom is comparing current dist to prev dist).
-        
-        // Note: p5.js doesn't give 'prevTouches' easily. 
-        // We use a simplified stateless approach or store frame data.
-        // Better approach: Compare current distance vs distance in previous frame.
-        // However, standard p5 `touchMoved` triggers continuously.
-        
-        // Let's implement a robust "start" vs "current" logic or delta logic
-        // Because touchMoved doesn't provide previous touch coords for specific fingers easily:
-        
-        // We will fallback to a simplified logic using global storage if needed, 
-        // but here is a delta-based approximation if available, otherwise we use raw diffs.
-        
-        // Calculate current distance
-        let currentDist = dist(t1.x, t1.y, t2.x, t2.y);
-        
-        // We need the previous distance to calculate delta. 
-        // Let's store the previous touches in a global var at the end of draw/touchMoved
-        if (typeof prevTouch1 !== 'undefined' && typeof prevTouch2 !== 'undefined') {
-            let prevDist = dist(prevTouch1.x, prevTouch1.y, prevTouch2.x, prevTouch2.y);
-            
-            // ZOOM (Pinch)
-            let sensitivity = 0.01;
-            let scaleFactor = (currentDist - prevDist) * sensitivity;
-            zoom += scaleFactor * zoom; // Scale relative to current zoom
-            zoom = constrain(zoom, 0.1, 15.0);
+  if (touchStartedOnUI) {
+    return false;
+  }
 
-            // ROTATE (Two fingers moving up/down together or rotating)
-            // Simplified: vertical movement of both fingers = Tilt (AngleX)
-            // Horizontal movement of both fingers = Rotate (AngleY)
-            
-            let prevCenterY = (prevTouch1.y + prevTouch2.y) / 2;
-            let currCenterY = (t1.y + t2.y) / 2;
-            let prevCenterX = (prevTouch1.x + prevTouch2.x) / 2;
-            let currCenterX = (t1.x + t2.x) / 2;
-            
-            let dY = currCenterY - prevCenterY;
-            let dX = currCenterX - prevCenterX;
-            
-            // To distinguish from Pan, we usually require 2 fingers. 
-            // Let's map 2-finger Pan to Rotate:
-            angleX -= dY * 0.005;
-            angleY -= dX * 0.005;
-            angleX = constrain(angleX, Math.PI/2, Math.PI/1.25);
-        }
-        
-        // Update previous touches for next frame
-        prevTouch1 = {x: t1.x, y: t1.y};
-        prevTouch2 = {x: t2.x, y: t2.y};
+  // 1. Один палец - ПАНОРАМИРОВАНИЕ
+  if (touches.length === 1) {
+    let sensitivity = 1.5 / zoom; // Чуть чувствительнее на мобильных
+    let deltaX = mouseX - pmouseX;
+    let deltaY = mouseY - pmouseY;
+    
+    let cosY = Math.cos(angleY);
+    let sinY = Math.sin(angleY);
+    
+    // Усиливаем горизонтальное движение для лучшего отклика
+    offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity * 1.2;
+    offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity * 1.2;
+  } 
+  // 2. Два пальца - ЗУМ, ВРАЩЕНИЕ и НАКЛОН
+  else if (touches.length === 2) {
+    // Текущие координаты пальцев
+    let t1 = createVector(touches[0].x, touches[0].y);
+    let t2 = createVector(touches[1].x, touches[1].y);
+    
+    // ЗУМ (расстояние между пальцами)
+    let currentPinchDistance = dist(t1.x, t1.y, t2.x, t2.y);
+    if (initialPinchDistance > 0) {
+      let zoomFactor = currentPinchDistance / initialPinchDistance;
+      zoom = initialZoom * zoomFactor;
+      zoom = constrain(zoom, 0.1, 15.0);
     }
     
-    return false; // Prevent default
+    // ВРАЩЕНИЕ (изменение угла между пальцами)
+    let currentPinchAngle = Math.atan2(t2.y - t1.y, t2.x - t1.x);
+    let rotationDelta = currentPinchAngle - initialPinchAngle;
+    
+    // Применяем вращение (angleY) с коэффициентом чувствительности
+    angleY = initialAngleY + rotationDelta * 1.5;
+    
+    // НАКЛОН (вертикальное движение двух пальцев вместе)
+    let currentCenterX = (t1.x + t2.x) / 2;
+    let currentCenterY = (t1.y + t2.y) / 2;
+    
+    let deltaCenterX = currentCenterX - initialTwoFingerX;
+    let deltaCenterY = currentCenterY - initialTwoFingerY;
+    
+    // Движение вверх/вниз - наклон (angleX)
+    // Движение влево/вправо - дополнительное вращение (angleY)
+    
+    // Наклон
+    angleX = initialAngleX + deltaCenterY * 0.01;
+    angleX = constrain(angleX, Math.PI/2, Math.PI/1.25);
+    
+    // Дополнительное вращение от горизонтального движения
+    angleY += deltaCenterX * 0.01;
+  }
+  
+  // 3. Три пальца - СБРОС ВРАЩЕНИЯ (на север)
+  else if (touches.length === 3) {
+    // Плавный сброс вращения к северу
+    angleY += (0 - angleY) * 0.1;
+  }
+  
+  return false;
 }
 
 function touchEnded() {
-    // Reset stored previous touches
-    if (touches.length < 2) {
-        prevTouch1 = undefined;
-        prevTouch2 = undefined;
-    }
-    
-    // Logic from mouseReleased
-    if (isDragging) {
-        isDragging = false;
-        return false;
-    }
-    // Handle click (tap) selection
-    // ... copy logic from mouseReleased for selection ...
-    
-    return false;
+  // Сбрасываем начальные значения для жестов
+  if (touches.length < 2) {
+    initialPinchDistance = 0;
+    initialPinchAngle = 0;
+    initialTwoFingerX = 0;
+    initialTwoFingerY = 0;
+    initialAngleY = 0;
+    initialAngleX = 0;
+    initialZoom = 0;
+  }
+  
+  // Обработка клика (касания) для выбора
+  // ... copy logic from mouseReleased for selection ...
+  
+  return false;
 }
 
+// Обновляем mouseDragged для лучшего отклика на мобильных
+function mouseDragged() {
+  if (mouseButton != LEFT) return;
+
+  // Если было перетаскивание по UI элементам - игнорируем
+  if (dragStartedOnUI || event.target.closest('.search-container') || 
+      event.target.closest('.controls') || event.target.closest('.mobile-controls')) {
+    return;
+  }
+
+  // Если смещение больше порога — это точно драг
+  if (!isDragging && dist(dragStartX, dragStartY, mouseX, mouseY) > dragThreshold) {
+    isDragging = true;
+  }
+
+  // Обычное перетаскивание карты
+  let sensitivity = 1.2 / zoom; // Чуть чувствительнее
+  let deltaX = mouseX - pmouseX;
+  let deltaY = mouseY - pmouseY;
+
+  if (keyPressed && keyIsDown(CONTROL)) {
+    angleY -= deltaX * 0.005;
+    angleX -= deltaY * 0.005;
+    angleX = constrain(angleX, Math.PI/2, Math.PI/1.25);
+  } else {
+    let cosY = Math.cos(angleY);
+    let sinY = Math.sin(angleY);
+    offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity;
+    offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity;
+  }
+}
 // --- Вставьте это в ui_logic.js или в конец global.js ---
 
 // 2. Сброс вида (на спаун)
