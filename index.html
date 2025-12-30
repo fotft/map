@@ -5,21 +5,31 @@
   <title>Карта Городка</title>
   <style>
   :root {
-    --ui-bg: rgba(255, 255, 255, 0.9);
+    --ui-bg: rgba(255, 255, 255, 0.95);
     --ui-text: #000;
     --ui-hover: #f0f0f0;
   }
   [data-theme="dark"] {
-    --ui-bg: rgba(30, 30, 30, 0.9);
+    --ui-bg: rgba(30, 30, 30, 0.95);
     --ui-text: #fff;
     --ui-hover: #444;
   }
 
   body { 
     margin: 0; 
+    padding: 0;
     overflow: hidden; 
     background: #000; 
     font-family: sans-serif; 
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    touch-action: none; /* Отключаем стандартные жесты браузера */
+  }
+  
+  html {
+    height: 100%;
+    overflow: hidden;
   }
   
   #ui-layer {
@@ -32,12 +42,21 @@
     pointer-events: none;
   }
 
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    display: block;
+  }
+
   .search-container {
     position: absolute;
-    top: 20px;
+    top: env(safe-area-inset-top, 10px); /* Учитываем безопасную зону на iPhone */
     left: 50%;
     transform: translateX(-50%);
-    width: min(90%, 500px);
+    width: min(calc(100vw - 30px), 500px);
     pointer-events: auto;
     z-index: 1001;
   }
@@ -45,30 +64,34 @@
   #search-input {
     width: 100%;
     box-sizing: border-box;
-    padding: 12px 20px;
-    border-radius: 10px;
+    padding: 16px 20px;
+    border-radius: 12px;
     border: none;
     background: var(--ui-bg);
     color: var(--ui-text);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    font-size: 16px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    font-size: 18px;
     outline: none;
     pointer-events: auto;
+    font-size: 16px;
+    touch-action: manipulation; /* Улучшаем отклик на касания */
   }
 
   #search-results {
     width: 100%;
     box-sizing: border-box;
     background: var(--ui-bg);
-    border-radius: 10px;
-    margin-top: 5px;
+    border-radius: 12px;
+    margin-top: 8px;
     display: none;
-    max-height: 300px;
+    max-height: 50vh;
     overflow-y: auto;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     pointer-events: auto;
     z-index: 1002;
     position: absolute;
+    backdrop-filter: blur(10px); /* Эффект размытия фона */
+    -webkit-backdrop-filter: blur(10px);
   }
 
   #search-results::-webkit-scrollbar {
@@ -81,16 +104,18 @@
   }
 
   .result-item {
-    padding: 12px 15px;
+    padding: 18px 20px;
     color: var(--ui-text);
     cursor: pointer;
-    border-bottom: 1px solid rgba(128,128,128,0.1);
+    border-bottom: 1px solid rgba(128,128,128,0.2);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     line-height: 1.4;
     pointer-events: auto;
+    font-size: 16px;
+    min-height: 54px; /* Увеличенная область касания */
   }
 
   .result-item:hover {
@@ -103,13 +128,13 @@
   }
 
   .result-type {
-    opacity: 0.5;
-    font-size: 11px;
+    opacity: 0.7;
+    font-size: 12px;
     text-transform: uppercase;
     white-space: nowrap;
-    background: rgba(128,128,128,0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
+    background: rgba(128,128,128,0.2);
+    padding: 4px 8px;
+    border-radius: 6px;
   }
 
   .highlight {
@@ -121,6 +146,7 @@
     display: none !important;
   }
 
+  /* Кнопки для десктопа */
   .controls {
     position: absolute; 
     right: 20px; 
@@ -128,34 +154,45 @@
     transform: translateY(-50%);
     display: flex; 
     flex-direction: column; 
-    gap: 10px; 
+    gap: 12px; 
     pointer-events: auto;
     z-index: 1001;
   }
 
+  /* Контейнер для мобильных кнопок */
+  .mobile-controls {
+    display: none;
+    position: fixed;
+    bottom: max(20px, env(safe-area-inset-bottom, 20px));
+    left: 0;
+    right: 0;
+    z-index: 1001;
+    pointer-events: auto;
+  }
+
   .btn {
-    width: 50px; 
-    height: 50px; 
+    width: 60px; 
+    height: 60px; 
     border-radius: 50%; 
     border: none;
     background: var(--ui-bg); 
     color: var(--ui-text);
     cursor: pointer; 
-    font-size: 20px; 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    font-size: 24px; 
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     pointer-events: auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s;
-  }
-
-  .btn:hover {
-    transform: scale(1.05);
+    transition: transform 0.1s, background 0.2s;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .btn:active {
     transform: scale(0.95);
+    background: var(--ui-hover);
   }
 
   /* Для предотвращения выделения текста при кликах */
@@ -168,49 +205,96 @@
 
   /* Адаптивность для мобильных устройств */
   @media (max-width: 768px) {
+    body {
+      -webkit-text-size-adjust: 100%;
+    }
+    
     .search-container {
-      top: 10px;
-      width: calc(100% - 40px);
+      top: max(10px, env(safe-area-inset-top, 10px));
+      width: calc(100vw - 40px);
       left: 20px;
       transform: none;
     }
     
     .controls {
-      top: auto;
-      bottom: 20px;
-      right: 50%;
-      transform: translateX(50%);
-      flex-direction: row;
-      gap: 15px;
+      display: none;
     }
     
-    .btn {
-      width: 60px;
-      height: 60px;
-      font-size: 24px;
+    .mobile-controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 0 20px;
+    }
+    
+    .mobile-controls .btn {
+      width: 70px;
+      height: 70px;
+      font-size: 28px;
+      flex: 0 0 auto;
     }
     
     #search-input {
-      padding: 15px 20px;
+      padding: 18px 22px;
       font-size: 18px;
+      border-radius: 16px;
     }
     
     .result-item {
-      padding: 15px;
-      font-size: 16px;
+      padding: 20px 22px;
+      font-size: 18px;
+      min-height: 60px;
+    }
+    
+    .result-type {
+      font-size: 13px;
+      padding: 5px 10px;
+    }
+    
+    /* Больше кнопок на очень широких экранах */
+    @media (min-width: 400px) and (max-width: 768px) {
+      .mobile-controls .btn {
+        width: 80px;
+        height: 80px;
+        font-size: 30px;
+      }
     }
   }
 
   /* Для очень маленьких экранов */
-  @media (max-width: 480px) {
-    .btn {
-      width: 50px;
-      height: 50px;
-      font-size: 20px;
+  @media (max-width: 360px) {
+    .mobile-controls {
+      gap: 15px;
+      padding: 0 15px;
     }
     
+    .mobile-controls .btn {
+      width: 65px;
+      height: 65px;
+      font-size: 26px;
+    }
+    
+    #search-input {
+      padding: 16px 18px;
+      font-size: 16px;
+    }
+    
+    .result-item {
+      padding: 18px 20px;
+      font-size: 16px;
+    }
+  }
+
+  /* Планшеты и маленькие ноутбуки */
+  @media (min-width: 769px) and (max-width: 1024px) {
     .controls {
-      gap: 10px;
+      right: 15px;
+    }
+    
+    .btn {
+      width: 55px;
+      height: 55px;
+      font-size: 22px;
     }
   }
 </style>
@@ -228,11 +312,31 @@
       <div id="search-results"></div>
     </div>
     
-    <div class="controls">
-      <button class="btn" onclick="toggleMapTheme()" title="Сменить тему">◑</button>
-      <button class="btn" onclick="resetView()" title="На спаун">⌂</button>
-      <button class="btn" onclick="rotateNorth()" title="На север">N</button>
-    </div>
+    <div id="ui-layer" data-theme="dark">
+  <div class="search-container">
+    <input type="text" 
+           id="search-input" 
+           placeholder="Поиск объектов..." 
+           autocomplete="off" 
+           oninput="window.updateSearchSuggestions(this.value)"
+           onkeydown="if(event.key==='Enter'){window.handleSearchEnter(event)}">
+    <div id="search-results"></div>
+  </div>
+  
+  <!-- Десктопные кнопки -->
+  <div class="controls">
+    <button class="btn" onclick="toggleMapTheme()" title="Сменить тему" id="theme-btn">◑</button>
+    <button class="btn" onclick="resetView()" title="На спаун" id="home-btn">⌂</button>
+    <button class="btn" onclick="rotateNorth()" title="На север" id="north-btn">N</button>
+  </div>
+  
+  <!-- Мобильные кнопки -->
+  <div class="mobile-controls">
+    <button class="btn" onclick="toggleMapTheme()" title="Сменить тему" id="mobile-theme-btn">◑</button>
+    <button class="btn" onclick="resetView()" title="На спаун" id="mobile-home-btn">⌂</button>
+    <button class="btn" onclick="rotateNorth()" title="На север" id="mobile-north-btn">N</button>
+  </div>
+</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
