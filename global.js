@@ -691,7 +691,7 @@ function touchMoved() {
                 angleX -= avgYDiff * tiltSensitivity; // ИНВЕРСИЯ
                 
                 // ВАЖНО: Ограничиваем угол наклона чтобы карта не переворачивалась
-                angleX = constrain(angleX, Math.PI/2+Math.PI/3, Math.PI/2+Math.PI/1.5);
+                angleX = constrain(angleX, Math.PI/2, Math.PI/2+Math.PI/1.5);
             }
         }
         
