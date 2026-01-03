@@ -17,11 +17,14 @@ window.updateSearchSuggestions = function(query) {
     window.currentSearchResults = [];
 
     // Ищем во всех доступных массивах
-    [labels, districts, buildings].forEach((arr, index) => {
+    [labels, districts, buildings, governments, hospitals, metro].forEach((arr, index) => {
         let type = '';
         if (index === 0) type = 'Метка';
         else if (index === 1) type = 'Район';
         else if (index === 2) type = 'Здание';
+        else if (index === 3) type = 'Здание';
+        else if (index === 4) type = 'Здание';
+        else if (index === 5) type = 'Метро';
         
         arr.forEach(item => {
             if (item.name && item.name.toLowerCase().includes(q)) {
@@ -136,12 +139,12 @@ window.handleSearchEnter = function(event) {
         let obj = null;
         
         // Сначала ищем точное совпадение
-        obj = [...labels, ...districts, ...buildings]
+        obj = [...labels, ...districts, ...buildings, ...governments, ...hospitals, ...metro]
             .find(item => item.name && item.name.toLowerCase() === query.toLowerCase());
         
         // Если нет точного, ищем частичное
         if (!obj) {
-            obj = [...labels, ...districts, ...buildings]
+            obj = [...labels, ...districts, ...buildings, ...governments, ...hospitals, ...metro]
                 .find(item => item.name && item.name.toLowerCase().includes(query.toLowerCase()));
         }
         
