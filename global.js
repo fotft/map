@@ -857,3 +857,25 @@ function findObjectByName(query) {
     }
     return null;
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчик для закрытия клавиатуры при касании вне поля ввода
+    document.addEventListener('touchstart', function(e) {
+        const searchContainer = document.querySelector('.search-container');
+        const isSearchClick = e.target.closest('.search-container') || 
+                             e.target.closest('#search-results');
+        
+        if (!isSearchClick) {
+            // Закрываем клавиатуру и скрываем результаты
+            const input = document.getElementById('search-input');
+            const results = document.getElementById('search-results');
+            
+            if (input) {
+                input.blur();
+            }
+            if (results) {
+                results.style.display = 'none';
+            }
+        }
+    });
+});
