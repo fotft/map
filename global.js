@@ -541,45 +541,47 @@ let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.
 
 // Обновите функцию touchStarted:
 function touchStarted() {
-    // Исправляем определение элемента под касанием
-    if (touches.length > 0) {
-        const touch = touches[0];
-        // Получаем элемент по координатам касания
+    // Определяем элемент, по которому произошло касание
+    const touch = touches[0];
+    if (touch) {
         const element = document.elementFromPoint(touch.x, touch.y);
         
-        // Проверяем, является ли элемент или его родитель UI-элементом
-        if (element && (element.closest('.search-container') || element.closest('.controls') || 
-            element.closest('#search-input') || element.closest('#search-results') ||
-            element.closest('.btn') || element.closest('.result-item'))) {
+        // Проверяем, является ли элемент кнопкой или элементом UI
+        if (element && (
+            element.classList.contains('btn') ||
+            element.closest('.btn') ||
+            element.closest('.search-container') ||
+            element.closest('.controls') ||
+            element.closest('#search-input') ||
+            element.closest('#search-results')
+        )) {
+            // Это клик по UI - позволяем браузеру обработать его
             touchStartedOnUI = true;
             
-            // Если это кнопка, добавляем визуальный фидбэк
-            if (element.closest('.btn')) {
-                element.closest('.btn').style.transform = 'scale(0.95)';
+            // Добавляем визуальную обратную связь для кнопок
+            if (element.classList.contains('btn') || element.closest('.btn')) {
+                const btn = element.classList.contains('btn') ? element : element.closest('.btn');
+                btn.style.transform = 'scale(0.95)';
                 setTimeout(() => {
-                    if (element.closest('.btn')) {
-                        element.closest('.btn').style.transform = '';
-                    }
+                    btn.style.transform = '';
                 }, 150);
             }
             
-            // Если это поле ввода, фокусируемся на нем
+            // Для поля ввода - фокусируемся
             if (element.closest('#search-input')) {
                 element.closest('#search-input').focus();
             }
             
-            return false;
+            return true; // Позволяем событию обрабатываться дальше
         }
     }
+    
     touchStartedOnUI = false;
     
     // Для жестов двумя пальцами
     if (touches.length === 2) {
         prevTouch1 = {x: touches[0].x, y: touches[0].y};
         prevTouch2 = {x: touches[1].x, y: touches[1].y};
-    } else {
-        prevTouch1 = undefined;
-        prevTouch2 = undefined;
     }
     
     // Для одного пальца - начало потенциального drag
@@ -705,6 +707,10 @@ function touchMoved() {
 
 // Обновите touchEnded:
 function touchEnded() {
+    if (touchStartedOnUI) {
+        touchStartedOnUI = false;
+        return true;
+    }
     // Сбрасываем состояние drag
     if (touches.length < 2) {
         prevTouch1 = undefined;
