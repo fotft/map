@@ -365,13 +365,50 @@ canvas {
   <div id="search-results" onclick="event.stopPropagation();"></div>
 </div>
     
-    <div class="controls" onclick="event.stopPropagation();">
-  <button class="btn" onclick="toggleMapTheme(event)" title="Сменить тему">◑</button>
-  <button class="btn" onclick="resetView(event)" title="На спаун">⌂</button>
-  <button class="btn" onclick="rotateNorth(event)" title="На север">N</button>
+    <div class="controls">
+    <button class="btn" onclick="handleButtonClick('theme')" 
+            ontouchstart="handleTouchStart(this)" 
+            ontouchend="handleTouchEnd(this)"
+            title="Сменить тему">◑</button>
+    <button class="btn" onclick="handleButtonClick('reset')" 
+            ontouchstart="handleTouchStart(this)" 
+            ontouchend="handleTouchEnd(this)"
+            title="На спаун">⌂</button>
+    <button class="btn" onclick="handleButtonClick('north')" 
+            ontouchstart="handleTouchStart(this)" 
+            ontouchend="handleTouchEnd(this)"
+            title="На север">N</button>
 </div>
   </div>
-
+<script>
+    // Функции для мобильных устройств
+    function handleTouchStart(button) {
+        button.style.transform = 'scale(0.95)';
+        return false; // Предотвращаем дальнейшую обработку
+    }
+    
+    function handleTouchEnd(button) {
+        button.style.transform = '';
+        return false; // Предотвращаем дальнейшую обработку
+    }
+    
+    function handleButtonClick(action) {
+        switch(action) {
+            case 'theme':
+                toggleMapTheme();
+                break;
+            case 'reset':
+                resetView();
+                break;
+            case 'north':
+                rotateNorth();
+                break;
+        }
+        // Предотвращаем всплытие события
+        event && event.stopPropagation();
+        return false;
+    }
+</script>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
   <script src="addScreenPositionFunction.js"></script>
   <script src="global.js"></script>
