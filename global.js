@@ -3,7 +3,7 @@ let gl;
 let font, boldFont;
 
 let theme = "dark";
-let zoom = 4;
+let zoom = 4; 
 
 let offsetX = -8;
 let offsetZ = 317;
