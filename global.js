@@ -605,7 +605,7 @@ function touchMoved() {
         }
         
         if (isDragging) {
-            let sensitivity = 1 / zoom * (isMobile ? 1.5 : 1); // Увеличиваем чувствительность на мобильных
+            let sensitivity = 1 / zoom * (isMobile ? 1.5 : 1);
             let deltaX = touches[0].x - (pmouseX || touches[0].x);
             let deltaY = touches[0].y - (pmouseY || touches[0].y);
             
@@ -616,13 +616,13 @@ function touchMoved() {
             offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity;
         }
     }
-    // 2. Два пальца - масштабирование и поворот
+    // 2. Два пальца - масштабирование и плавный поворот
     else if (touches.length === 2) {
         let t1 = {x: touches[0].x, y: touches[0].y};
         let t2 = {x: touches[1].x, y: touches[1].y};
         
         if (prevTouch1 && prevTouch2) {
-            // Масштабирование
+            // Масштабирование (пинч)
             let prevDist = dist(prevTouch1.x, prevTouch1.y, prevTouch2.x, prevTouch2.y);
             let currDist = dist(t1.x, t1.y, t2.x, t2.y);
             let scaleChange = (currDist - prevDist) * 0.01;
@@ -631,7 +631,7 @@ function touchMoved() {
             zoom += scaleChange * zoom;
             zoom = constrain(zoom, 0.1, 15.0);
             
-            // Центрирование масштабирования на середине между пальцами
+            // Центрирование масштабирования
             let centerX = (t1.x + t2.x) / 2;
             let centerZ = (t1.y + t2.y) / 2;
             
@@ -648,22 +648,47 @@ function touchMoved() {
             offsetX += (deltaZ * sinY + deltaX * cosY) * (1/oldZoom);
             offsetZ -= (deltaZ * cosY - deltaX * sinY) * (1/oldZoom);
             
-            // Поворот (только если пальцы двигаются в разные стороны)
-            let prevAngle = atan2(prevTouch2.y - prevTouch1.y, prevTouch2.x - prevTouch1.x);
-            let currAngle = atan2(t2.y - t1.y, t2.x - t1.x);
+            // ПОВОРОТ - ИСПРАВЛЕННАЯ ЛОГИКА
+            // Вычисляем угол между вектором от пальца 1 к пальцу 2
+            let prevAngle = Math.atan2(prevTouch2.y - prevTouch1.y, prevTouch2.x - prevTouch1.x);
+            let currAngle = Math.atan2(t2.y - t1.y, t2.x - t1.x);
+            
+            // Вычисляем разницу углов
             let angleDiff = currAngle - prevAngle;
             
-            // Плавный поворот с ограничением скорости
-            angleY -= angleDiff * 0.8;
+            // Корректируем разницу для плавности (устраняем скачки через 180 градусов)
+            if (angleDiff > Math.PI) {
+                angleDiff -= 2 * Math.PI;
+            } else if (angleDiff < -Math.PI) {
+                angleDiff += 2 * Math.PI;
+            }
             
-            // Наклон (если пальцы двигаются параллельно)
+            // Ограничиваем максимальное изменение угла за один шаг
+            let maxAngleChange = Math.PI / 6; // 30 градусов максимум
+            angleDiff = Math.max(-maxAngleChange, Math.min(maxAngleChange, angleDiff));
+            
+            // Применяем поворот с коэффициентом чувствительности
+            let rotationSensitivity = 0.5; // Можно регулировать
+            angleY -= angleDiff * rotationSensitivity;
+            
+            // НАКЛОН - ИСПРАВЛЕННАЯ ЛОГИКА
+            // Наклон только при движении обоих пальцев в одном направлении по вертикали
             let prevMidY = (prevTouch1.y + prevTouch2.y) / 2;
             let currMidY = (t1.y + t2.y) / 2;
-            let tiltDiff = (currMidY - prevMidY) * 0.01;
             
-            // Ограничиваем наклон
-            angleX += tiltDiff;
-            angleX = constrain(angleX, Math.PI/2.2, Math.PI/1.3);
+            // Определяем, двигаются ли пальцы в одном направлении по Y
+            let y1Diff = t1.y - prevTouch1.y;
+            let y2Diff = t2.y - prevTouch2.y;
+            
+            // Если пальцы двигаются в одном направлении (знак совпадает) - это наклон
+            if (y1Diff * y2Diff > 0) {
+                let avgYDiff = (y1Diff + y2Diff) / 2;
+                let tiltSensitivity = 0.005;
+                angleX += avgYDiff * tiltSensitivity;
+                
+                // Ограничиваем угол наклона
+                angleX = Math.max(Math.PI/3, Math.min(Math.PI/1.5, angleX));
+            }
         }
         
         // Обновляем предыдущие позиции
