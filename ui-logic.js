@@ -113,6 +113,10 @@ window.navigateToObject = function(obj) {
         targetX = -firstPoint.x;
         targetZ = -firstPoint.z;
         targetZoom = 8; // Для зданий приближаем сильнее
+    } else if (obj.base) {
+        targetX = -obj.base.x;
+        targetZ = -obj.base.z;
+        targetZoom = 4;
     } else {
         console.log('Не удалось определить координаты объекта');
         return;
