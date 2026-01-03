@@ -670,7 +670,7 @@ function touchMoved() {
             // ПРИМЕНЯЕМ ПОВОРОТ С ИНВЕРСИЕЙ (меняем знак)
             // Было: angleY -= angleDiff * rotationSensitivity
             // Стало: angleY += angleDiff * rotationSensitivity
-            let rotationSensitivity = 0.5;
+            let rotationSensitivity = 1;
             angleY += angleDiff * rotationSensitivity; // ИНВЕРСИЯ
             
             // НАКЛОН ВОКРУГ ГОРИЗОНТАЛЬНОЙ ОСИ (X) - ИНВЕРТИРОВАН
