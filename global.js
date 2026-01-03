@@ -622,7 +622,7 @@ function touchMoved() {
         let t2 = {x: touches[1].x, y: touches[1].y};
         
         if (prevTouch1 && prevTouch2) {
-            // Масштабирование (пинч)
+            // Масштабирование (пинч) - без изменений
             let prevDist = dist(prevTouch1.x, prevTouch1.y, prevTouch2.x, prevTouch2.y);
             let currDist = dist(t1.x, t1.y, t2.x, t2.y);
             let scaleChange = (currDist - prevDist) * 0.01;
@@ -648,7 +648,7 @@ function touchMoved() {
             offsetX += (deltaZ * sinY + deltaX * cosY) * (1/oldZoom);
             offsetZ -= (deltaZ * cosY - deltaX * sinY) * (1/oldZoom);
             
-            // ПОВОРОТ - ИСПРАВЛЕННАЯ ЛОГИКА
+            // ПОВОРОТ ВОКРУГ ВЕРТИКАЛЬНОЙ ОСИ (Y) - ИНВЕРТИРОВАН
             // Вычисляем угол между вектором от пальца 1 к пальцу 2
             let prevAngle = Math.atan2(prevTouch2.y - prevTouch1.y, prevTouch2.x - prevTouch1.x);
             let currAngle = Math.atan2(t2.y - t1.y, t2.x - t1.x);
@@ -667,12 +667,14 @@ function touchMoved() {
             let maxAngleChange = Math.PI / 6; // 30 градусов максимум
             angleDiff = Math.max(-maxAngleChange, Math.min(maxAngleChange, angleDiff));
             
-            // Применяем поворот с коэффициентом чувствительности
-            let rotationSensitivity = 0.5; // Можно регулировать
-            angleY -= angleDiff * rotationSensitivity;
+            // ПРИМЕНЯЕМ ПОВОРОТ С ИНВЕРСИЕЙ (меняем знак)
+            // Было: angleY -= angleDiff * rotationSensitivity
+            // Стало: angleY += angleDiff * rotationSensitivity
+            let rotationSensitivity = 0.5;
+            angleY += angleDiff * rotationSensitivity; // ИНВЕРСИЯ
             
-            // НАКЛОН - ИСПРАВЛЕННАЯ ЛОГИКА
-            // Наклон только при движении обоих пальцев в одном направлении по вертикали
+            // НАКЛОН ВОКРУГ ГОРИЗОНТАЛЬНОЙ ОСИ (X) - ИНВЕРТИРОВАН
+            // Наклон при движении обоих пальцев в одном направлении по вертикали
             let prevMidY = (prevTouch1.y + prevTouch2.y) / 2;
             let currMidY = (t1.y + t2.y) / 2;
             
@@ -684,7 +686,11 @@ function touchMoved() {
             if (y1Diff * y2Diff > 0) {
                 let avgYDiff = (y1Diff + y2Diff) / 2;
                 let tiltSensitivity = 0.005;
-                angleX += avgYDiff * tiltSensitivity;
+                
+                // ПРИМЕНЯЕМ НАКЛОН С ИНВЕРСИЕЙ (меняем знак)
+                // Было: angleX += avgYDiff * tiltSensitivity
+                // Стало: angleX -= avgYDiff * tiltSensitivity
+                angleX -= avgYDiff * tiltSensitivity; // ИНВЕРСИЯ
                 
                 // Ограничиваем угол наклона
                 angleX = Math.max(Math.PI/3, Math.min(Math.PI/1.5, angleX));
