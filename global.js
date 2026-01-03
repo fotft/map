@@ -687,13 +687,11 @@ function touchMoved() {
                 let avgYDiff = (y1Diff + y2Diff) / 2;
                 let tiltSensitivity = 0.005;
                 
-                // ПРИМЕНЯЕМ НАКЛОН С ИНВЕРСИЕЙ (меняем знак)
-                // Было: angleX += avgYDiff * tiltSensitivity
-                // Стало: angleX -= avgYDiff * tiltSensitivity
+                // ПРИМЕНЯЕМ НАКЛОН С ИНВЕРСИЕЙ
                 angleX -= avgYDiff * tiltSensitivity; // ИНВЕРСИЯ
                 
-                // Ограничиваем угол наклона
-                angleX = Math.max(Math.PI/3, Math.min(Math.PI/1.5, angleX));
+                // ВАЖНО: Ограничиваем угол наклона чтобы карта не переворачивалась
+                angleX = constrain(angleX, Math.PI/3, Math.PI/1.5);
             }
         }
         
