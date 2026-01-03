@@ -640,7 +640,7 @@ function touchMoved() {
             let normX = (centerX - width / 2.0) / width;
             let normZ = (centerZ - height / 2.0) / height;
             let deltaZoom = zoom - oldZoom;
-            let smoothingFactor = 1.0 / Math.pow(zoom, 1.5);
+            let smoothingFactor = 1.0; // / Math.pow(zoom, 1.5);
             
             let deltaX = -normX * deltaZoom * width * smoothingFactor;
             let deltaZ = -normZ * deltaZoom * height * smoothingFactor;
