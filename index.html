@@ -279,26 +279,97 @@ canvas {
         bottom: max(10px, env(safe-area-inset-bottom));
     }
 }
+
+    /* Добавьте эти стили в существующие медиа-запросы */
+@media (max-width: 768px) {
+  .search-container {
+    position: fixed; /* Изменим на fixed для лучшего позиционирования */
+    top: env(safe-area-inset-top, 0px);
+    left: 0;
+    right: 0;
+    width: auto;
+    margin: 10px;
+    transform: none;
+    z-index: 1001;
+  }
+  
+  #search-input {
+    font-size: 16px;
+    padding: 14px 16px;
+    height: auto;
+    min-height: 44px; /* Минимальная высота для удобного нажатия */
+    touch-action: manipulation; /* Улучшает отзывчивость на касания */
+  }
+  
+  #search-results {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 70px);
+    left: 10px;
+    right: 10px;
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 1002;
+  }
+  
+  .result-item {
+    min-height: 44px; /* Минимальная высота для удобного нажатия */
+    padding: 12px 16px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .result-item:active {
+    background-color: var(--ui-hover); /* Визуальный фидбэк при нажатии */
+  }
+  
+  .controls {
+    position: fixed;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    right: 50%;
+    transform: translateX(50%);
+    flex-direction: row;
+    gap: 20px;
+    z-index: 1001;
+  }
+  
+  .btn {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+  
+  .btn:active {
+    transform: scale(0.95);
+    background-color: var(--ui-hover);
+  }
+}
 </style>
 </head>
 <body>
 
   <div id="ui-layer" data-theme="dark">
-    <div class="search-container">
-      <input type="text" 
-             id="search-input" 
-             placeholder="Поиск объектов..." 
-             autocomplete="off" 
-             oninput="window.updateSearchSuggestions(this.value)"
-             onkeydown="window.handleSearchEnter(event)">
-      <div id="search-results"></div>
-    </div>
+    <div class="search-container" onclick="event.stopPropagation();">
+  <input type="text" 
+         id="search-input" 
+         placeholder="Поиск объектов..." 
+         autocomplete="off" 
+         oninput="window.updateSearchSuggestions(this.value)"
+         onkeydown="window.handleSearchEnter(event)"
+         onclick="event.stopPropagation();">
+  <div id="search-results" onclick="event.stopPropagation();"></div>
+</div>
     
-    <div class="controls">
-      <button class="btn" onclick="toggleMapTheme()" title="Сменить тему">◑</button>
-      <button class="btn" onclick="resetView()" title="На спаун">⌂</button>
-      <button class="btn" onclick="rotateNorth()" title="На север">N</button>
-    </div>
+    <div class="controls" onclick="event.stopPropagation();">
+  <button class="btn" onclick="toggleMapTheme(event)" title="Сменить тему">◑</button>
+  <button class="btn" onclick="resetView(event)" title="На спаун">⌂</button>
+  <button class="btn" onclick="rotateNorth(event)" title="На север">N</button>
+</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
