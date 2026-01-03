@@ -337,6 +337,33 @@ function mousePressed() {
     // Ничего не делаем пока
 }
 
+function mouseDragged() {
+    if (dragStartedOnUI || event.target.closest('.search-container') || event.target.closest('.controls')) {
+        return;
+    }
+    if (mouseButton != LEFT) return;
+
+    // Если смещение больше порога — это точно драг
+    if (!isDragging && dist(dragStartX, dragStartY, mouseX, mouseY) > dragThreshold) {
+        isDragging = true;
+    }
+
+    // Обычное перетаскивание карты
+    let sensitivity = 1 / zoom;
+    let deltaX = mouseX - pmouseX;
+    let deltaY = mouseY - pmouseY;
+
+    if (keyPressed && keyIsDown(CONTROL)) {
+        angleY -= deltaX * 0.005;
+        angleX -= deltaY * 0.005;
+        angleX = constrain(angleX, Math.PI/2, Math.PI/1.25);
+    } else {
+        let cosY = Math.cos(angleY);
+        let sinY = Math.sin(angleY);
+        offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity;
+        offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity;
+    }
+}
 
 function mouseReleased() {
     if (mouseButton != LEFT) return;
@@ -508,164 +535,174 @@ function applyTheme() {
     for (let u of underlays) { u.clr = underlayClr }
     for (let a of alleys) { a.clr = alleyClr }
 }
-let initialPinchDistance = 0;
-let initialPinchAngle = 0;
-let initialTwoFingerX = 0;
-let initialTwoFingerY = 0;
-let initialAngleY = 0;
-let initialAngleX = 0;
-let initialZoom = 0;
 
+// Добавьте в начало global.js
+let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// Обновите функцию touchStarted:
 function touchStarted() {
-  // Получаем элемент по координатам первого касания
-  if (touches.length > 0) {
-    const touch = touches[0];
-    const element = document.elementFromPoint(touch.x, touch.y);
-    if (element && (element.closest('.search-container') || element.closest('.controls') || element.closest('.mobile-controls'))) {
-      touchStartedOnUI = true;
-      return false;
+    // Исправляем определение элемента под касанием
+    if (touches.length > 0) {
+        const touch = touches[0];
+        // Получаем элемент по координатам касания
+        const element = document.elementFromPoint(touch.x, touch.y);
+        
+        // Проверяем, является ли элемент или его родитель UI-элементом
+        if (element && (element.closest('.search-container') || element.closest('.controls') || 
+            element.closest('#search-input') || element.closest('#search-results') ||
+            element.closest('.btn') || element.closest('.result-item'))) {
+            touchStartedOnUI = true;
+            
+            // Если это кнопка, добавляем визуальный фидбэк
+            if (element.closest('.btn')) {
+                element.closest('.btn').style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    if (element.closest('.btn')) {
+                        element.closest('.btn').style.transform = '';
+                    }
+                }, 150);
+            }
+            
+            // Если это поле ввода, фокусируемся на нем
+            if (element.closest('#search-input')) {
+                element.closest('#search-input').focus();
+            }
+            
+            return false;
+        }
     }
-  }
-  touchStartedOnUI = false;
-  
-  // Сохраняем начальные значения для жестов двумя пальцами
-  if (touches.length === 2) {
-    // Расстояние между пальцами для зума
-    let dx = touches[0].x - touches[1].x;
-    let dy = touches[0].y - touches[1].y;
-    initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
-    initialZoom = zoom;
+    touchStartedOnUI = false;
     
-    // Угол между пальцами для вращения
-    initialPinchAngle = Math.atan2(dy, dx);
+    // Для жестов двумя пальцами
+    if (touches.length === 2) {
+        prevTouch1 = {x: touches[0].x, y: touches[0].y};
+        prevTouch2 = {x: touches[1].x, y: touches[1].y};
+    } else {
+        prevTouch1 = undefined;
+        prevTouch2 = undefined;
+    }
     
-    // Центр между пальцами для движения
-    initialTwoFingerX = (touches[0].x + touches[1].x) / 2;
-    initialTwoFingerY = (touches[0].y + touches[1].y) / 2;
+    // Для одного пальца - начало потенциального drag
+    if (touches.length === 1) {
+        dragStartX = touches[0].x;
+        dragStartY = touches[0].y;
+        isDragging = false;
+    }
     
-    // Сохраняем начальные углы камеры
-    initialAngleY = angleY;
-    initialAngleX = angleX;
-  }
-  
-  return false;
-}
-
-function touchMoved() {
-  if (touchStartedOnUI) {
     return false;
-  }
+}
 
-  // 1. Один палец - ПАНОРАМИРОВАНИЕ
-  if (touches.length === 1) {
-    let sensitivity = 1.5 / zoom; // Чуть чувствительнее на мобильных
-    let deltaX = mouseX - pmouseX;
-    let deltaY = mouseY - pmouseY;
-    
-    let cosY = Math.cos(angleY);
-    let sinY = Math.sin(angleY);
-    
-    // Усиливаем горизонтальное движение для лучшего отклика
-    offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity * 1.2;
-    offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity * 1.2;
-  } 
-  // 2. Два пальца - ЗУМ, ВРАЩЕНИЕ и НАКЛОН
-  else if (touches.length === 2) {
-    // Текущие координаты пальцев
-    let t1 = createVector(touches[0].x, touches[0].y);
-    let t2 = createVector(touches[1].x, touches[1].y);
-    
-    // ЗУМ (расстояние между пальцами)
-    let currentPinchDistance = dist(t1.x, t1.y, t2.x, t2.y);
-    if (initialPinchDistance > 0) {
-      let zoomFactor = currentPinchDistance / initialPinchDistance;
-      zoom = initialZoom * zoomFactor;
-      zoom = constrain(zoom, 0.1, 15.0);
+// Улучшенная функция touchMoved для плавных жестов:
+function touchMoved() {
+    if (touchStartedOnUI) {
+        return false;
     }
     
-    // ВРАЩЕНИЕ (изменение угла между пальцами)
-    let currentPinchAngle = Math.atan2(t2.y - t1.y, t2.x - t1.x);
-    let rotationDelta = currentPinchAngle - initialPinchAngle;
+    // 1. Один палец - перемещение карты
+    if (touches.length === 1) {
+        if (!isDragging && dist(dragStartX, dragStartY, touches[0].x, touches[0].y) > 10) {
+            isDragging = true;
+        }
+        
+        if (isDragging) {
+            let sensitivity = 1 / zoom * (isMobile ? 1.5 : 1); // Увеличиваем чувствительность на мобильных
+            let deltaX = touches[0].x - (pmouseX || touches[0].x);
+            let deltaY = touches[0].y - (pmouseY || touches[0].y);
+            
+            let cosY = Math.cos(angleY);
+            let sinY = Math.sin(angleY);
+            
+            offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity;
+            offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity;
+        }
+    }
+    // 2. Два пальца - масштабирование и поворот
+    else if (touches.length === 2) {
+        let t1 = {x: touches[0].x, y: touches[0].y};
+        let t2 = {x: touches[1].x, y: touches[1].y};
+        
+        if (prevTouch1 && prevTouch2) {
+            // Масштабирование
+            let prevDist = dist(prevTouch1.x, prevTouch1.y, prevTouch2.x, prevTouch2.y);
+            let currDist = dist(t1.x, t1.y, t2.x, t2.y);
+            let scaleChange = (currDist - prevDist) * 0.01;
+            
+            let oldZoom = zoom;
+            zoom += scaleChange * zoom;
+            zoom = constrain(zoom, 0.1, 15.0);
+            
+            // Центрирование масштабирования на середине между пальцами
+            let centerX = (t1.x + t2.x) / 2;
+            let centerZ = (t1.y + t2.y) / 2;
+            
+            let normX = (centerX - width / 2.0) / width;
+            let normZ = (centerZ - height / 2.0) / height;
+            let deltaZoom = zoom - oldZoom;
+            let smoothingFactor = 1.0 / Math.pow(zoom, 1.5);
+            
+            let deltaX = -normX * deltaZoom * width * smoothingFactor;
+            let deltaZ = -normZ * deltaZoom * height * smoothingFactor;
+            
+            let cosY = Math.cos(angleY);
+            let sinY = Math.sin(angleY);
+            offsetX += (deltaZ * sinY + deltaX * cosY) * (1/oldZoom);
+            offsetZ -= (deltaZ * cosY - deltaX * sinY) * (1/oldZoom);
+            
+            // Поворот (только если пальцы двигаются в разные стороны)
+            let prevAngle = atan2(prevTouch2.y - prevTouch1.y, prevTouch2.x - prevTouch1.x);
+            let currAngle = atan2(t2.y - t1.y, t2.x - t1.x);
+            let angleDiff = currAngle - prevAngle;
+            
+            // Плавный поворот с ограничением скорости
+            angleY -= angleDiff * 0.8;
+            
+            // Наклон (если пальцы двигаются параллельно)
+            let prevMidY = (prevTouch1.y + prevTouch2.y) / 2;
+            let currMidY = (t1.y + t2.y) / 2;
+            let tiltDiff = (currMidY - prevMidY) * 0.01;
+            
+            // Ограничиваем наклон
+            angleX += tiltDiff;
+            angleX = constrain(angleX, Math.PI/2.2, Math.PI/1.3);
+        }
+        
+        // Обновляем предыдущие позиции
+        prevTouch1 = {x: t1.x, y: t1.y};
+        prevTouch2 = {x: t2.x, y: t2.y};
+    }
     
-    // Применяем вращение (angleY) с коэффициентом чувствительности
-    angleY = initialAngleY + rotationDelta * 1.5;
-    
-    // НАКЛОН (вертикальное движение двух пальцев вместе)
-    let currentCenterX = (t1.x + t2.x) / 2;
-    let currentCenterY = (t1.y + t2.y) / 2;
-    
-    let deltaCenterX = currentCenterX - initialTwoFingerX;
-    let deltaCenterY = currentCenterY - initialTwoFingerY;
-    
-    // Движение вверх/вниз - наклон (angleX)
-    // Движение влево/вправо - дополнительное вращение (angleY)
-    
-    // Наклон
-    angleX = initialAngleX + deltaCenterY * 0.01;
-    angleX = constrain(angleX, Math.PI/2, Math.PI/1.25);
-    
-    // Дополнительное вращение от горизонтального движения
-    angleY += deltaCenterX * 0.01;
-  }
-  
-  // 3. Три пальца - СБРОС ВРАЩЕНИЯ (на север)
-  else if (touches.length === 3) {
-    // Плавный сброс вращения к северу
-    angleY += (0 - angleY) * 0.1;
-  }
-  
-  return false;
+    return false;
 }
 
+// Обновите touchEnded:
 function touchEnded() {
-  // Сбрасываем начальные значения для жестов
-  if (touches.length < 2) {
-    initialPinchDistance = 0;
-    initialPinchAngle = 0;
-    initialTwoFingerX = 0;
-    initialTwoFingerY = 0;
-    initialAngleY = 0;
-    initialAngleX = 0;
-    initialZoom = 0;
-  }
-  
-  // Обработка клика (касания) для выбора
-  // ... copy logic from mouseReleased for selection ...
-  
-  return false;
+    // Сбрасываем состояние drag
+    if (touches.length < 2) {
+        prevTouch1 = undefined;
+        prevTouch2 = undefined;
+    }
+    
+    // Если это был тап (не drag) - обрабатываем клик
+    if (!isDragging && touches.length === 0) {
+        // Используем mouseX/mouseY для определения клика
+        // (p5.js обновляет их при touch-событиях)
+        let clickedOnLabel = false;
+        for (let d of districts) {
+            if (d.isLabelClicked()) {
+                clickedOnLabel = true;
+                activeDistrict = (activeDistrict == d) ? null : d;
+                break;
+            }
+        }
+        if (!clickedOnLabel) {
+            activeDistrict = null;
+        }
+    }
+    
+    isDragging = false;
+    return false;
 }
 
-// Обновляем mouseDragged для лучшего отклика на мобильных
-function mouseDragged() {
-  if (mouseButton != LEFT) return;
-
-  // Если было перетаскивание по UI элементам - игнорируем
-  if (dragStartedOnUI || event.target.closest('.search-container') || 
-      event.target.closest('.controls') || event.target.closest('.mobile-controls')) {
-    return;
-  }
-
-  // Если смещение больше порога — это точно драг
-  if (!isDragging && dist(dragStartX, dragStartY, mouseX, mouseY) > dragThreshold) {
-    isDragging = true;
-  }
-
-  // Обычное перетаскивание карты
-  let sensitivity = 1.2 / zoom; // Чуть чувствительнее
-  let deltaX = mouseX - pmouseX;
-  let deltaY = mouseY - pmouseY;
-
-  if (keyPressed && keyIsDown(CONTROL)) {
-    angleY -= deltaX * 0.005;
-    angleX -= deltaY * 0.005;
-    angleX = constrain(angleX, Math.PI/2, Math.PI/1.25);
-  } else {
-    let cosY = Math.cos(angleY);
-    let sinY = Math.sin(angleY);
-    offsetX += (deltaY * sinY + deltaX * cosY) * sensitivity;
-    offsetZ -= (deltaY * cosY - deltaX * sinY) * sensitivity;
-  }
-}
 // --- Вставьте это в ui_logic.js или в конец global.js ---
 
 // 2. Сброс вида (на спаун)
@@ -791,5 +828,3 @@ function findObjectByName(query) {
     }
     return null;
 }
-
-
