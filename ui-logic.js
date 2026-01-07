@@ -105,7 +105,7 @@ window.updateSearchSuggestions = function(query) {
     window.currentSearchResults = [];
 
     // Ищем во всех доступных массивах
-    [labels, districts, buildings, governments, hospitals, metro, roads].forEach((arr, index) => {
+    [labels, districts, metro, roads].forEach((arr, index) => {
         let type = '';
         if (index === 0) type = 'Метка';
         else if (index === 1) type = 'Район';
