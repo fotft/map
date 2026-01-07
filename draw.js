@@ -226,7 +226,7 @@ function drawSimplePoly(points) {
 
 function drawBuildingGeometry(obj) {
     for (let detail of obj.details) {
-        drawSimplePoly(detail.down_points);
+        //drawSimplePoly(detail.down_points);
         drawSimplePoly(detail.up_points);
         
         for (let j = 0; j < detail.down_points.length; j++) {
