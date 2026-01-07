@@ -34,20 +34,6 @@ class District extends Area {
         area *= 0.5;
         return createVector(cx / (6 * area), 9.5, cz / (6 * area));
     }
-    drawPolygonOnly() {
-        if (this != activeDistrict) {
-            return;
-        }
-        strokeWeight(Math.sqrt(zoom) / zoom * 2);
-        stroke(red(this.clr), green(this.clr), blue(this.clr));
-        fill(red(this.clr), green(this.clr), blue(this.clr), 20);  // полупрозрачно
-        beginShape();
-        for (let p of points) {
-            vertex(p.x, p.y - 0.02, p.z);
-        }
-        endShape(CLOSE);
-        noStroke();
-    }
     drawLabelOnly() {
         if (zoom < 0.2 || zoom >= 0.5 || this.name == null || this.name.length == 0) {
             return;
@@ -69,18 +55,6 @@ class District extends Area {
         text(this.name, 0, 0);
         gl.enable(gl.DEPTH_TEST);
         pop();
-    }
-    isLabelClicked() {
-        if (!this.labelValid) {
-            return false;
-        }
-        textFont(font, 20);
-        let w = textWidth(this.name) / zoom * 1.2;
-        let h = 30 / zoom;
-        return mouseX > this.labelScreenPos.x - w/2 &&
-               mouseX < this.labelScreenPos.x + w/2 &&
-               mouseY > this.labelScreenPos.y - h/2 &&
-               mouseY < this.labelScreenPos.y + h/2;
     }
 }
 
