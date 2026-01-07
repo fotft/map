@@ -89,14 +89,7 @@ let activeDistrict = null;
 function drawDistricts() {
     // Рисуем рамки районов. Текст рисуем только для активного.
     for (let d of districts) {
-        if (activeDistrict === d) {
-            d.show();
-            d.drawPolygonOnly();
-        } 
-        // Текст районов
-        if (activeDistrict != d && zoom >= 0.25 && zoom <= 2 && d.name?.length > 0) {
-            d.drawLabelOnly();
-        }
+        d.drawPolygonOnly();
     }
 }
 
