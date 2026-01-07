@@ -599,6 +599,11 @@ function touchMoved() {
     if (touchStartedOnUI) {
         return false;
     }
+
+    if (window.isTouchInteracting) {
+        return false;
+    }
+
     
     // 1. Один палец - перемещение карты
     if (touches.length === 1) {
