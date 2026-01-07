@@ -492,17 +492,33 @@ canvas {
     var script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js';
     document.head.appendChild(script);
-    // Простой обработчик кнопок
+// Простой обработчик кнопок для ПК
 document.addEventListener('DOMContentLoaded', function() {
+  // Проверяем, не мобильное ли устройство
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (!isMobile) {
+    // Только для ПК оставляем обработчики onclick
+    document.querySelectorAll('.btn[data-action]').forEach(btn => {
+      const action = btn.getAttribute('data-action');
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        switch(action) {
+          case 'theme': toggleMapTheme(); break;
+          case 'reset': resetView(); break;
+          case 'north': rotateNorth(); break;
+        }
+      };
+    });
+  }
+  
+  // Общий обработчик для предотвращения событий на кнопках
   document.querySelectorAll('.btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
+    btn.addEventListener('mousedown', function(e) {
       e.stopPropagation();
-      const action = this.getAttribute('data-action');
-      switch(action) {
-        case 'theme': toggleMapTheme(); break;
-        case 'reset': resetView(); break;
-        case 'north': rotateNorth(); break;
-      }
+    });
+    btn.addEventListener('mouseup', function(e) {
+      e.stopPropagation();
     });
   });
 });
