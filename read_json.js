@@ -163,7 +163,7 @@ function read_json_metro() {
         let json_entrances = metro1.entrances;
         let entrances = [];
         for (let e of json_entrances) {
-            entrances.push(createVector(e.x, e.y, e.z));
+            entrances.push(createVector(e[0], e[1], e[2]));
         }
         metro.push(new Metro(name, createVector(base[0], base[1], base[2]), entrances));
     }
