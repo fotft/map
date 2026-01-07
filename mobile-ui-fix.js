@@ -1,55 +1,65 @@
-// mobile-ui-fix.js
+// mobile-ui-fix.js - ОБНОВЛЕННАЯ ВЕРСИЯ
 (function() {
-  // Проверяем мобильное устройство
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
   if (!isMobile) return;
   
-  // Переменные для управления состоянием UI
   let isKeyboardVisible = false;
   let searchInput = null;
   let searchResults = null;
   
-  // Инициализация при загрузке
   document.addEventListener('DOMContentLoaded', function() {
     searchInput = document.getElementById('search-input');
     searchResults = document.getElementById('search-results');
     
-    if (!searchInput || !searchResults) return;
-    
-    // 1. Обработка кликов по результатам поиска
-    document.addEventListener('click', function(e) {
-      const resultItem = e.target.closest('.result-item');
-      if (resultItem) {
+    // 1. ОБНОВЛЕНИЕ: Правильная обработка кнопок
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+      // Удаляем старые обработчики
+      btn.removeAttribute('onclick');
+      btn.removeAttribute('ontouchstart');
+      btn.removeAttribute('ontouchend');
+      
+      // Добавляем новые обработчики событий
+      btn.addEventListener('touchstart', function(e) {
         e.preventDefault();
         e.stopPropagation();
+        this.style.transform = 'scale(0.95)';
+        this.style.opacity = '0.8';
+      }, { passive: false });
+      
+      btn.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.style.transform = '';
+        this.style.opacity = '';
         
-        // Находим индекс элемента
-        const items = Array.from(searchResults.querySelectorAll('.result-item'));
-        const index = items.indexOf(resultItem);
-        
-        if (index !== -1) {
-          // Вызываем функцию выбора
-          if (window.selectSearchResult) {
-            window.selectSearchResult(index);
+        // Выполняем действие кнопки
+        const action = this.getAttribute('title');
+        setTimeout(() => {
+          if (action === 'Сменить тему') {
+            toggleMapTheme();
+          } else if (action === 'На спаун') {
+            resetView();
+          } else if (action === 'На север') {
+            rotateNorth();
           }
-        }
-      }
-    }, true); // Используем capture phase
+        }, 50);
+      }, { passive: false });
+    });
     
-    // 2. Обработка касаний для прокрутки результатов
+    // 2. ОБНОВЛЕНИЕ: Исправление выпадающего списка
     searchResults.addEventListener('touchstart', function(e) {
-      e.stopPropagation(); // Останавливаем всплытие
-    }, { passive: true });
+      e.stopPropagation();
+    }, { passive: false });
     
     searchResults.addEventListener('touchmove', function(e) {
-      e.stopPropagation(); // Останавливаем всплытие
-    }, { passive: true });
+      e.stopPropagation();
+    }, { passive: false });
     
-    // 3. Обработка фокуса/потери фокуса поля ввода
+    // 3. Обработка фокуса/потери фокуса
     searchInput.addEventListener('focus', function() {
       isKeyboardVisible = true;
-      // Показываем результаты если есть текст
       if (searchInput.value.length >= 2) {
         searchResults.style.display = 'block';
       }
@@ -57,69 +67,56 @@
     
     searchInput.addEventListener('blur', function() {
       isKeyboardVisible = false;
-      // Не скрываем сразу, даем время для клика по результатам
       setTimeout(() => {
         if (!isKeyboardVisible) {
           searchResults.style.display = 'none';
         }
-      }, 200);
+      }, 300); // Увеличиваем задержку для клика по результатам
     });
     
     // 4. Обработка касания вне поля ввода
     document.addEventListener('touchstart', function(e) {
       const isSearchClick = e.target.closest('.search-container') || 
                            e.target.closest('#search-results') ||
-                           e.target === searchInput;
+                           e.target === searchInput ||
+                           e.target.closest('.btn'); // Добавляем кнопки
       
       if (!isSearchClick) {
-        // Скрываем клавиатуру и результаты
-        searchInput.blur();
-        searchResults.style.display = 'none';
-        isKeyboardVisible = false;
+        closeKeyboard();
       }
     });
     
-    // 5. Обработка кнопок
-    const buttons = document.querySelectorAll('.btn');
-    buttons.forEach(btn => {
-      btn.addEventListener('touchstart', function(e) {
+    // 5. ОБНОВЛЕНИЕ: Обработка кликов по результатам поиска
+    document.addEventListener('touchstart', function(e) {
+      const resultItem = e.target.closest('.result-item');
+      if (resultItem) {
         e.preventDefault();
         e.stopPropagation();
         
         // Визуальный фидбэк
-        this.style.transform = 'scale(0.95)';
-        this.style.opacity = '0.8';
+        resultItem.style.backgroundColor = 'var(--ui-hover)';
         
-        // Выполняем действие через короткую задержку
-        setTimeout(() => {
-          const action = this.getAttribute('onclick');
-          if (action) {
-            // Извлекаем имя функции из onclick
-            const match = action.match(/^(\w+)\(/);
-            if (match && window[match[1]]) {
-              window[match[1]](e);
-            }
-          }
-          
-          // Возвращаем нормальное состояние
+        // Находим индекс элемента
+        const items = Array.from(searchResults.querySelectorAll('.result-item'));
+        const index = items.indexOf(resultItem);
+        
+        if (index !== -1 && window.selectSearchResult) {
+          // Восстанавливаем цвет через время
           setTimeout(() => {
-            this.style.transform = '';
-            this.style.opacity = '';
-          }, 150);
-        }, 50);
-      }, { passive: false });
-      
-      btn.addEventListener('touchend', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-      }, { passive: false });
-    });
+            resultItem.style.backgroundColor = '';
+          }, 200);
+          
+          // Вызываем функцию выбора с небольшой задержкой
+          setTimeout(() => {
+            window.selectSearchResult(index);
+          }, 100);
+        }
+      }
+    }, { passive: false });
     
     // 6. Предотвращаем масштабирование страницы жестами
     document.addEventListener('touchmove', function(e) {
-      if (e.target.closest('#search-results') || 
-          e.target.closest('.search-container') ||
-          e.target.closest('.controls')) {
+      if (e.scale !== 1) {
         e.preventDefault();
       }
     }, { passive: false });
@@ -127,13 +124,11 @@
     // 7. Обработка клавиши "Готово" на клавиатуре
     searchInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
-        // Скрываем клавиатуру
         this.blur();
       }
     });
   });
   
-  // Функция для закрытия клавиатуры
   window.closeKeyboard = function() {
     if (searchInput) {
       searchInput.blur();
@@ -145,7 +140,6 @@
     isKeyboardVisible = false;
   };
   
-  // Функция для проверки, открыта ли клавиатура
   window.isKeyboardOpen = function() {
     return isKeyboardVisible;
   };

@@ -5,6 +5,29 @@ window.targetZ = null;
 window.isAnimating = false;
 window.currentSearchResults = [];
 
+// ui-logic.js - Дополнения для мобильных
+(function() {
+  // Проверяем мобильное устройство
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    // На мобильных устройствах увеличиваем минимальную высоту для клика
+    document.addEventListener('DOMContentLoaded', function() {
+      const style = document.createElement('style');
+      style.textContent = `
+        .result-item {
+          min-height: 44px !important;
+          cursor: pointer !important;
+        }
+        .result-item:active {
+          background-color: var(--ui-hover) !important;
+        }
+      `;
+      document.head.appendChild(style);
+    });
+  }
+})();
+
 // Обновление подсказок поиска
 window.updateSearchSuggestions = function(query) {
     const resultsDiv = document.getElementById('search-results');
