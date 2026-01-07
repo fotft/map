@@ -105,14 +105,12 @@ window.updateSearchSuggestions = function(query) {
     window.currentSearchResults = [];
 
     // Ищем во всех доступных массивах
-    [labels, districts, buildings, governments, hospitals, metro].forEach((arr, index) => {
+    [labels, districts, buildings, governments, hospitals, metro, roads].forEach((arr, index) => {
         let type = '';
         if (index === 0) type = 'Метка';
         else if (index === 1) type = 'Район';
-        else if (index === 2) type = 'Здание';
-        else if (index === 3) type = 'Здание';
-        else if (index === 4) type = 'Здание';
-        else if (index === 5) type = 'Метро';
+        else if (index === 2) type = 'Метро';
+        else if (index === 3) type = 'Дорога';
         
         arr.forEach(item => {
             if (item.name && item.name.toLowerCase().includes(q)) {
@@ -195,16 +193,14 @@ window.navigateToObject = function(obj) {
         targetX = -obj.center.x;
         targetZ = -obj.center.z;
         targetZoom = 1; // Для районов приближаем меньше
-    } else if (obj.details && obj.details[0] && obj.details[0].down_points) {
-        // Здания
-        const firstPoint = obj.details[0].down_points[0];
-        targetX = -firstPoint.x;
-        targetZ = -firstPoint.z;
-        targetZoom = 8; // Для зданий приближаем сильнее
     } else if (obj.base_location) {
         targetX = -obj.base_location.x;
         targetZ = -obj.base_location.z;
         targetZoom = 4;
+    } else if (obj.road_center) {
+        targetX = -obj.road_center.x;
+        targetX = -obj.road_center.x;
+        targetZoom = 3;
     } else {
         console.log('Не удалось определить координаты объекта');
         return;
@@ -231,12 +227,12 @@ window.handleSearchEnter = function(event) {
         let obj = null;
         
         // Сначала ищем точное совпадение
-        obj = [...labels, ...districts, ...buildings, ...governments, ...hospitals, ...metro]
+        obj = [...labels, ...districts, ...metro, ...roads]
             .find(item => item.name && item.name.toLowerCase() === query.toLowerCase());
         
         // Если нет точного, ищем частичное
         if (!obj) {
-            obj = [...labels, ...districts, ...buildings, ...governments, ...hospitals, ...metro]
+            obj = [...labels, ...districts, ...metro, ...roads]
                 .find(item => item.name && item.name.toLowerCase().includes(query.toLowerCase()));
         }
         
