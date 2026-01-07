@@ -5,6 +5,71 @@ window.targetZ = null;
 window.isAnimating = false;
 window.currentSearchResults = [];
 
+// ui-logic.js - исправления для мобильных
+(function() {
+  // Глобальная переменная для отслеживания состояния касания
+  let isTouchInteracting = false;
+  
+  // Переопределяем функцию navigateToObject для мобильных
+  const originalNavigateToObject = window.navigateToObject;
+  
+  window.navigateToObject = function(obj) {
+    console.log('Навигация к объекту на мобильном:', obj);
+    
+    if (!obj) return;
+    
+    // Устанавливаем флаг, что это взаимодействие с UI
+    isTouchInteracting = true;
+    
+    // Определяем целевые координаты
+    let targetX, targetZ;
+    let targetZoom = 4; // Значение по умолчанию для мобильных
+    
+    if (obj.location) {
+      targetX = -obj.location.x;
+      targetZ = -obj.location.z;
+      targetZoom = Math.max(3, Math.min(10, obj.level || 4));
+    } else if (obj.center) {
+      targetX = -obj.center.x;
+      targetZ = -obj.center.z;
+      targetZoom = 2;
+    } else if (obj.details && obj.details[0] && obj.details[0].down_points) {
+      const firstPoint = obj.details[0].down_points[0];
+      targetX = -firstPoint.x;
+      targetZ = -firstPoint.z;
+      targetZoom = 6;
+    } else if (obj.base_location) {
+      targetX = -obj.base_location.x;
+      targetZ = -obj.base_location.z;
+      targetZoom = 4;
+    }
+    
+    // Немедленно устанавливаем значения камеры
+    offsetX = targetX;
+    offsetZ = targetZ;
+    zoom = targetZoom;
+    
+    console.log('Камера установлена на мобильном:', { offsetX, offsetZ, zoom });
+    
+    // Сбрасываем флаг через короткое время
+    setTimeout(() => {
+      isTouchInteracting = false;
+    }, 500);
+  };
+  
+  // Отслеживаем события касания на карте
+  if (typeof canvas !== 'undefined') {
+    canvas.addEventListener('touchstart', function(e) {
+      // Если было взаимодействие с UI, игнорируем первое движение
+      if (isTouchInteracting) {
+        isTouchInteracting = false;
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { passive: false });
+  }
+})();
+
 // ui-logic.js - Дополнения для мобильных
 (function() {
   // Проверяем мобильное устройство
