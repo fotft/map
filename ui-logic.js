@@ -33,15 +33,14 @@ window.currentSearchResults = [];
       targetX = -obj.center.x;
       targetZ = -obj.center.z;
       targetZoom = 2;
-    } else if (obj.details && obj.details[0] && obj.details[0].down_points) {
-      const firstPoint = obj.details[0].down_points[0];
-      targetX = -firstPoint.x;
-      targetZ = -firstPoint.z;
-      targetZoom = 6;
     } else if (obj.base_location) {
       targetX = -obj.base_location.x;
       targetZ = -obj.base_location.z;
       targetZoom = 4;
+    } else if (obj.road_center) {
+      targetX = -obj.road_center.x;
+      targetZ = -obj.road_center.z;
+      targetZoom = 5;
     }
     
     // Немедленно устанавливаем значения камеры
@@ -200,7 +199,7 @@ window.navigateToObject = function(obj) {
     } else if (obj.road_center) {
         targetX = -obj.road_center.x;
         targetX = -obj.road_center.x;
-        targetZoom = 3;
+        targetZoom = 5;
     } else {
         console.log('Не удалось определить координаты объекта');
         return;
