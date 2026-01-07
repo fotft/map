@@ -310,7 +310,7 @@ class Metro {
                     text(this.name, dx, dy);
                 }
             }
-            fill(red(this.clr), green(this.clr), blue(this.clr));
+            fill(this.clr);
             if (this.icon != null) {
                 text(this.name, 0, w / 1.5 + d);
             }
