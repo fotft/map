@@ -323,15 +323,6 @@ function mousePressed() {
     isDragging = false;
 
     // Проверяем клик по метке района — это всегда приоритет
-    for (let d of districts) {
-        if (d.isLabelClicked() && (zoom < 1) && (zoom >= 0.25)) {
-            activeDistrict = (activeDistrict == d) ? null : d;
-            // НЕ ставим return! Пусть дальше идёт логика клика
-            // Но помечаем, что это был клик по метке
-            isDragging = false;
-            return; // ← всё-таки оставляем return, но теперь всё будет ок
-        }
-    }
 
     // Если клик не по метке — это потенциальный драг или клик в пустоту
     // Ничего не делаем пока
@@ -372,22 +363,6 @@ function mouseReleased() {
     if (isDragging) {
         isDragging = false;
         return;
-    }
-
-    // Если не было движения — это был чистый клик
-    if (dist(dragStartX, dragStartY, mouseX, mouseY) <= dragThreshold) {
-        // И если при этом не кликнули по метке района — снимаем выделение
-        // (но если кликнули по метке — мы уже переключили activeDistrict в mousePressed)
-        let clickedOnLabel = false;
-        for (let d of districts) {
-            if (d.isLabelClicked()) {
-                clickedOnLabel = true;
-                break;
-            }
-        }
-        if (!clickedOnLabel) {
-            activeDistrict = null;  // клик в пустоту
-        }
     }
 
     isDragging = false;
@@ -720,23 +695,6 @@ function touchEnded() {
     if (touches.length < 2) {
         prevTouch1 = undefined;
         prevTouch2 = undefined;
-    }
-    
-    // Если это был тап (не drag) - обрабатываем клик
-    if (!isDragging && touches.length === 0) {
-        // Используем mouseX/mouseY для определения клика
-        // (p5.js обновляет их при touch-событиях)
-        let clickedOnLabel = false;
-        for (let d of districts) {
-            if (d.isLabelClicked()) {
-                clickedOnLabel = true;
-                activeDistrict = (activeDistrict == d) ? null : d;
-                break;
-            }
-        }
-        if (!clickedOnLabel) {
-            activeDistrict = null;
-        }
     }
     
     isDragging = false;
