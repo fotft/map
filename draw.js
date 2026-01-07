@@ -85,11 +85,10 @@ function drawMetroLines() {
     }
 }
 
-let activeDistrict = null;
 function drawDistricts() {
     // Рисуем рамки районов. Текст рисуем только для активного.
     for (let d of districts) {
-        d.drawLabelOnly();
+        //d.drawLabelOnly();
     }
 }
 
