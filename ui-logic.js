@@ -198,7 +198,7 @@ window.navigateToObject = function(obj) {
         targetZoom = 4;
     } else if (obj.road_center) {
         targetX = -obj.road_center.x;
-        targetX = -obj.road_center.x;
+        targetZ = -obj.road_center.z;
         targetZoom = 5;
     } else {
         console.log('Не удалось определить координаты объекта');
