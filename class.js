@@ -34,6 +34,20 @@ class District extends Area {
         area *= 0.5;
         return createVector(cx / (6 * area), 9.5, cz / (6 * area));
     }
+    drawPolygonOnly() {
+        if (this != activeDistrict) {
+            return;
+        }
+        strokeWeight(Math.sqrt(zoom) / zoom * 2);
+        stroke(red(this.clr), green(this.clr), blue(this.clr));
+        fill(red(this.clr), green(this.clr), blue(this.clr), 20);  // полупрозрачно
+        beginShape();
+        for (let p of points) {
+            vertex(p.x, p.y - 0.02, p.z);
+        }
+        endShape(CLOSE);
+        noStroke();
+    }
     drawLabelOnly() {
         if (zoom < 0.2 || zoom >= 0.5 || this.name == null || this.name.length == 0) {
             return;
@@ -55,6 +69,18 @@ class District extends Area {
         text(this.name, 0, 0);
         gl.enable(gl.DEPTH_TEST);
         pop();
+    }
+    isLabelClicked() {
+        if (!this.labelValid) {
+            return false;
+        }
+        textFont(font, 20);
+        let w = textWidth(this.name) / zoom * 1.2;
+        let h = 30 / zoom;
+        return mouseX > this.labelScreenPos.x - w/2 &&
+               mouseX < this.labelScreenPos.x + w/2 &&
+               mouseY > this.labelScreenPos.y - h/2 &&
+               mouseY < this.labelScreenPos.y + h/2;
     }
 }
 
@@ -329,7 +355,6 @@ class Metro {
                         text(this.name + "\nвход " +(i+1), dx, dy);
                     }
                 }
-                fill(this.clr);
                 if (this.icon != null) {
                     text(this.name + "\nвход " + (i+1), 0, w / 1.5 + d);
                 }
@@ -428,6 +453,17 @@ class Railway {
 class Road extends Area {
     constructor(name, points) {
         super(name, points, roadClr);
+        this.calculateRoadCenter();
+    }
+    
+    calculateRoadCenter() {
+        // Вычисляем среднее арифметическое всех точек полигона
+        let center = createVector(0, 0, 0);
+        for (let point of this.points) {
+            center.add(point);
+        }
+        center.div(this.points.length);
+        this.road_center = center;
     }
     show() {
         super.show(); 
@@ -498,7 +534,7 @@ class Road extends Area {
         let sY = screenY(textPos.x, textPos.y, textPos.z);
         
         textFont(font, 17); 
-        let txtW = textWidth(name);
+        let txtW = textWidth(this.name);
         let txtH = 20;
         for (let l of labels) {
             if (l.level > zoom) {
