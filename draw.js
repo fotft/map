@@ -6,7 +6,7 @@ let staticRailwaysModel = null;   // ЖД пути (линии)
 function drawAlleys() {
     for (let i = 0; i < alleys.length; i++) alleys[i].show();
 }
-
+ 
 
 
 function drawLabels() {
