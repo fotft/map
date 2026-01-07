@@ -136,7 +136,7 @@ window.navigateToObject = function(obj) {
         targetX = -firstPoint.x;
         targetZ = -firstPoint.z;
         targetZoom = 8; // Для зданий приближаем сильнее
-    } else if (obj.base) {
+    } else if (obj.base_location) {
         targetX = -obj.base_location.x;
         targetZ = -obj.base_location.z;
         targetZoom = 4;
