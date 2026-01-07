@@ -96,7 +96,7 @@ function drawDistricts() {
 // --- ГЛАВНАЯ ФУНКЦИЯ ДЛЯ ДИНАМИКИ ---
 function drawDynamicElements() {
     // Здесь осталось только то, что НЕЛЬЗЯ запечь
-    drawDistricts();
+    //drawDistricts();
     drawMetroLines();
     drawLabels();
     drawMetro();
