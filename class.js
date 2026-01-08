@@ -454,155 +454,188 @@ class Railway {
 class Road extends Area {
     constructor(name, points) {
         super(name, points, roadClr);
-        this.isSelected = false;
-        this.highlightColor = color(255, 0, 0, 100);
+        this.calculateRoadCenter();
     }
     
-    show() {
-        // Если дорога выделена (при поиске), рисуем красным
-        if (this.isSelected) {
-            noStroke();
-            fill(this.highlightColor);
-            beginShape();
-            for (let p of this.points) {
-                vertex(p.x, p.y, p.z);
-            }
-            endShape(CLOSE);
-        } else {
-            // Иначе обычный цвет
-            super.show();
+    calculateRoadCenter() {
+        // Вычисляем среднее арифметическое всех точек полигона
+        let center = createVector(0, 0, 0);
+        for (let point of this.points) {
+            center.add(point);
         }
-        
-        // Рисуем название дороги
-        if (zoom >= 1.5 && this.name && this.name.length > 0) {
+        center.div(this.points.length);
+        this.road_center = center;
+    }
+    show() {
+        super.show(); 
+        if ((zoom >= 1.5) && (this.name != null) && (this.name.length > 0)) {
             this.drawRoadLabel();
         }
     }
     
     drawRoadLabel() {
-        // 1. Находим самый длинный видимый сегмент дороги
-        let bestSegment = null;
-        let bestLength = 0;
-        
-        for (let i = 0; i < this.points.length - 1; i++) {
+        if (frameCount !== this.lastFrameChecked) {
+            this.currentFrameLabels = [];
+            this.lastFrameChecked = frameCount;
+        }
+        if (zoom <= 2) return;
+        let bestP1 = null, bestP2 = null;
+        let maxScreenDist = 0;
+        let n = this.points.length;
+        for (let i = 0; i < n; i++) {
             let p1 = this.points[i];
-            let p2 = this.points[i + 1];
-            
-            // Пропускаем слишком короткие сегменты
-            if (dist(p1.x, p1.z, p2.x, p2.z) < 10) continue;
-            
-            // Преобразуем в экранные координаты
+            let p2 = this.points[(i + 1) % n];
+            let mid = p5.Vector.add(p1, p2).mult(0.5);
             let sx1 = screenX(p1.x, p1.y, p1.z);
-            let sy1 = screenY(p1.x, p1.y, p1.z);
+            let sy1 = screenX(p1.x, p1.y, p1.z);
             let sx2 = screenX(p2.x, p2.y, p2.z);
-            let sy2 = screenY(p2.x, p2.y, p2.z);
-            
-            // Проверяем, виден ли сегмент на экране
-            if (sx1 < 0 && sx2 < 0) continue;
-            if (sx1 > width && sx2 > width) continue;
-            if (sy1 < 0 && sy2 < 0) continue;
-            if (sy1 > height && sy2 > height) continue;
-            
-            // Вычисляем длину в экранных координатах
-            let screenLength = dist(sx1, sy1, sx2, sy2);
-            
-            if (screenLength > bestLength && screenLength > 50) {
-                bestLength = screenLength;
-                bestSegment = {
-                    p1: p1, p2: p2,
-                    sx1: sx1, sy1: sy1,
-                    sx2: sx2, sy2: sy2
-                };
+            let sy2 = screenX(p2.x, p2.y, p2.z);
+            if ((sx1 < 0 && sx2 < 0) || (sx1 > width && sx2 > width)) {
+                continue;
+            }
+            if ((sy1 < 0 && sy2 < 0) || (sy1 > height && sy2 > height)) {
+                continue;
+            }
+            let d = dist(sx1, sy1, sx2, sy2);
+            if (d > maxScreenDist) {
+                maxScreenDist = d;
+                bestP1 = p1;
+                bestP2 = p2;
             }
         }
-        
-        if (!bestSegment) return;
-        
-        // 2. Вычисляем середину сегмента
-        let midWorld = createVector(
-            (bestSegment.p1.x + bestSegment.p2.x) / 2,
-            (bestSegment.p1.y + bestSegment.p2.y) / 2 + 0.3, // Немного выше дороги
-            (bestSegment.p1.z + bestSegment.p2.z) / 2
-        );
-        
-        // 3. Вычисляем угол поворота текста
-        let dx = bestSegment.sx2 - bestSegment.sx1;
-        let dy = bestSegment.sy2 - bestSegment.sy1;
-        let angle = atan2(dy, dx);
-        
-        // Корректируем угол для читаемости
-        if (abs(angle) > PI/2) {
-            angle += PI;
+        if (bestP1 == null || maxScreenDist < 60) {
+            return;
         }
+        let pA = bestP1;
+        let pB = bestP2;
+        let sxA = screenX(pA.x, pA.y, pA.z);
+        let sxB = screenX(pB.x, pB.y, pB.z);
+        if (sxA > sxB) {
+            let temp = pA;
+            pA = pB;
+            pB = temp;
+        }
+        let segmentDir = p5.Vector.sub(pB, pA);
+        let angle = -atan2(segmentDir.z, segmentDir.x);
+        let segmentEdgeMid = p5.Vector.add(pA, pB).mult(0.5);
+        let normal = createVector(-segmentDir.z, 0, segmentDir.x).normalize();
+        let testPoint = p5.Vector.add(segmentEdgeMid, p5.Vector.mult(normal, 0.1));
+        if (!this.isPointInsidePolygonXZ(testPoint)) {
+            normal.mult(-1);
+        }
+        let oppositePoint = this.findRayIntersection(segmentEdgeMid, normal);
+        let textPos;
+        if (oppositePoint != null) {
+            textPos = p5.Vector.add(segmentEdgeMid, oppositePoint).mult(0.5);
+        } else {
+            textPos = p5.Vector.add(segmentEdgeMid, p5.Vector.mult(normal, 4.0));
+        }
+        textPos.y += 0.5;
+        let sX = screenX(textPos.x, textPos.y, textPos.z);
+        let sY = screenY(textPos.x, textPos.y, textPos.z);
         
-        // 4. Проверяем, нет ли рядом других меток (чтобы не накладывались)
-        let midScreenX = (bestSegment.sx1 + bestSegment.sx2) / 2;
-        let midScreenY = (bestSegment.sy1 + bestSegment.sy2) / 2;
-        
-        // Создаем глобальный массив для хранения позиций меток в этом кадре
-        if (!window.roadLabelsThisFrame) window.roadLabelsThisFrame = [];
-        
-        // Проверяем коллизии
-        textFont(font, 14);
-        let textW = textWidth(this.name);
-        let textH = 20;
-        
-        for (let label of window.roadLabelsThisFrame) {
-            if (dist(midScreenX, midScreenY, label.x, label.y) < 60) {
-                return; // Пропускаем эту метку - слишком близко к другой
+        textFont(font, 17); 
+        let txtW = textWidth(this.name);
+        let txtH = 20;
+        for (let l of labels) {
+            if (l.level > zoom) {
+                continue;
+            }
+            let lx = screenX(l.x, l.y, l.z);
+            let ly = screenY(l.x, l.y, l.z);
+            if (Math.abs(sX - lx) < (txtW/2 + 25) && Math.abs(sY - ly) < (txtH/2 + 25)) {
+                return;
             }
         }
-        
-        // Сохраняем позицию этой метки
-        window.roadLabelsThisFrame.push({
-            x: midScreenX,
-            y: midScreenY,
-            w: textW,
-            h: textH
-        });
-        
-        // 5. Рисуем метку
+        for (let rect of this.currentFrameLabels) {
+            if (Math.abs(sX - rect[0]) < (txtW/2 + rect[2]/2) && 
+                Math.abs(sY - rect[1]) < (txtH/2 + rect[3]/2)) {
+                    return;
+                }
+        }
         push();
-        translate(midWorld.x, midWorld.y, midWorld.z);
-        rotateY(-angleY);
-        rotateX(-angleX);
-        scale(1 / zoom);
-        rotateZ(angle); // Поворачиваем текст вдоль дороги
-        
+        translate(textPos.x, textPos.y, textPos.z);
+        scale(1/zoom); 
+        rotateY(angle);    
+        rotateX(Math.PI/2);     
+        gl.disable(gl.DEPTH_TEST);
+        scale(1, -1, 1);
         textAlign(CENTER, CENTER);
-        textFont(font, 14);
-        
-        // Рисуем фон для лучшей читаемости
-        noStroke();
         if (theme === "dark") {
-            fill(0, 0, 0, 150);
-        } else {
-            fill(255, 255, 255, 180);
+            fill(40, 40, 40, 125);
         }
-        let padding = 4;
-        rect(-textW/2 - padding, -textH/2 - padding, 
-             textW + 2*padding, textH + 2*padding, 4);
-        
-        // Рисуем текст
+        else {
+            fill(215, 215, 215, 125);
+        }
+        for (let r = 0; r < Math.PI * 2; r += 3 / 2) {
+            let dx = Math.cos(r) * 2;
+            let dy = Math.sin(r) * 2;
+            text(this.name, dx, dy);
+        }
         if (theme === "dark") {
-            fill(220, 220, 220);
-        } else {
-            fill(50, 50, 50);
+            fill(220, 220, 220, 230);
+        }
+        else {
+            fill(50, 50, 50, 230);
         }
         text(this.name, 0, 0);
-        
+        gl.enable(gl.DEPTH_TEST);
         pop();
+        this.currentFrameLabels.push([createVector(sX, sY), txtW, txtH]);
     }
-    
-    setSelected(selected) {
-        this.isSelected = selected;
+    isPointInsidePolygonXZ(p) {
+        let inside = false;
+        let n = this.points.length;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+            let pi = this.points[i];
+            let pj = this.points[j];
+            if (((pi.z > p.z) != (pj.z > p.z)) &&
+                (p.x < (pj.x - pi.x) * (p.z - pi.z) / (pj.z - pi.z) + pi.x)) {
+                inside = !inside;
+            }
+        }
+        return inside;
     }
-    
-    // Для обратной совместимости
-    setHighlight(highlight) {
-        this.isSelected = highlight;
+    findRayIntersection(origin, dir) {
+        let closestIntersection = null;
+        let minDistSq = Infinity;
+        let n = this.points.length;
+        for (let i = 0; i < n; i++) {
+            let p1 = this.points[i];
+            let p2 = this.points[(i + 1) % n];
+            if (p5.Vector.dist(origin, p1) < 0.1 || p5.Vector.dist(origin, p2) < 0.1) {
+                continue;
+            }
+            let intersection = this.getLineIntersectionXZ(origin, p5.Vector.add(origin, p5.Vector.mult(dir, 1000)), p1, p2);
+            if (intersection != null) {
+                let dSq = p5.Vector.dist(origin, intersection);
+                if (dSq > 0.1 && dSq < minDistSq) { 
+                    minDistSq = dSq;
+                    closestIntersection = intersection;
+                }
+            }
+        }
+        return closestIntersection;
+    }
+    getLineIntersectionXZ(p1, p2, p3, p4) {
+        let x1 = p1.x, z1 = p1.z;
+        let x2 = p2.x, z2 = p2.z;
+        let x3 = p3.x, z3 = p3.z;
+        let x4 = p4.x, z4 = p4.z;
+
+        let denom = (z4 - z3) * (x2 - x1) - (x4 - x3) * (z2 - z1);
+        if (denom === 0) {
+            return null;
+        }
+        let ua = ((x4 - x3) * (z1 - z3) - (z4 - z3) * (x1 - x3)) / denom;
+        let ub = ((x2 - x1) * (z1 - z3) - (z2 - z1) * (x1 - x3)) / denom;
+        if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+            return createVector(x1 + ua * (x2 - x1), p1.y, z1 + ua * (z2 - z1));
+        }
+        return null;
     }
 }
+
 
 class Sidewalk {
     constructor(points) {
