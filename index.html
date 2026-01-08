@@ -197,87 +197,6 @@ canvas {
 }
 
     /* Добавьте в тег style в index.html */
-.admin-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.7);
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.admin-modal-content {
-    background: var(--ui-bg);
-    color: var(--ui-text);
-    padding: 20px;
-    border-radius: 10px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.admin-form-section {
-    margin-bottom: 15px;
-}
-
-.admin-form-section label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-.admin-form-section input,
-.admin-form-section select,
-.admin-form-section textarea {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-.coord-input {
-    display: flex;
-    gap: 5px;
-}
-
-.coord-input input {
-    flex: 1;
-}
-
-.admin-modal-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.admin-modal-buttons button {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.admin-modal-buttons button:first-child {
-    background: #4CAF50;
-    color: white;
-}
-
-.admin-modal-buttons button:last-child {
-    background: #f44336;
-    color: white;
-}
-
-.admin-btn, .admin-add-btn {
-    margin-top: 10px;
-}
 
 /* ============= НАЧАЛО: ОБНОВЛЕННЫЕ МОБИЛЬНЫЕ СТИЛИ (ЗАМЕНИТЕ СТАРЫЕ) ============= */
 
@@ -502,8 +421,6 @@ canvas {
   <!-- Важно: ui-logic.js загружается ПОСЛЕ всех скриптов с данными -->
   <script src="ui-logic.js"></script>
   <script src="mobile-ui-fix.js"></script>
-  <!-- Добавьте после других скриптов -->
-<script src="admin-panel.js"></script>
   
   <script src="grdkmap.js"></script>
 
