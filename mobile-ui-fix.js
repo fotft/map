@@ -1,4 +1,6 @@
 // mobile-ui-fix.js - ОБНОВЛЕННАЯ ВЕРСИЯ
+
+/*
 (function() {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
@@ -185,5 +187,151 @@
   
   window.isKeyboardOpen = function() {
     return isKeyboardVisible;
+  };
+})();
+*/
+
+// mobile-ui-fix.js - ОБНОВЛЕННАЯ ВЕРСИЯ С ПРОКРУТКОЙ
+(function() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (!isMobile) return;
+  
+  let isKeyboardVisible = false;
+  let searchInput = null;
+  let searchResults = null;
+  let ignoreNextBlur = false;
+  let touchStartY = 0;
+  let isScrolling = false;
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    searchInput = document.getElementById('search-input');
+    searchResults = document.getElementById('search-results');
+    
+    if (!searchInput || !searchResults) return;
+    
+    // 1. ОБНОВЛЕННАЯ ПРОКРУТКА ДЛЯ СПИСКА РЕЗУЛЬТАТОВ
+    let scrollStartY = 0;
+    let listScrollTop = 0;
+    let isListScrolling = false;
+    
+    searchResults.addEventListener('touchstart', function(e) {
+      if (e.target.closest('.result-item')) {
+        // Если касаемся элемента, не начинаем прокрутку
+        isListScrolling = false;
+        return;
+      }
+      
+      scrollStartY = e.touches[0].clientY;
+      listScrollTop = searchResults.scrollTop;
+      isListScrolling = true;
+      e.stopPropagation();
+    }, { passive: true });
+    
+    searchResults.addEventListener('touchmove', function(e) {
+      if (!isListScrolling || e.target.closest('.result-item')) {
+        e.stopPropagation();
+        return;
+      }
+      
+      const deltaY = e.touches[0].clientY - scrollStartY;
+      
+      // Если пытаемся прокрутить список
+      if (Math.abs(deltaY) > 5) {
+        e.preventDefault();
+        e.stopPropagation();
+        searchResults.scrollTop = listScrollTop - deltaY;
+      }
+    }, { passive: false });
+    
+    searchResults.addEventListener('touchend', function(e) {
+      isListScrolling = false;
+      e.stopPropagation();
+    }, { passive: true });
+    
+    // 2. ПРАВИЛЬНАЯ ОБРАБОТКА КНОПОК
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.style.transform = 'scale(0.95)';
+      }, { passive: false });
+      
+      btn.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.style.transform = '';
+        
+        const action = this.getAttribute('title');
+        setTimeout(() => {
+          if (action === 'Сменить тему') {
+            toggleMapTheme();
+          } else if (action === 'На спаун') {
+            resetView();
+          } else if (action === 'На север') {
+            rotateNorth();
+          }
+        }, 10);
+      }, { passive: false });
+    });
+    
+    // 3. Обработка кликов по результатам с улучшенной прокруткой
+    searchResults.addEventListener('click', function(e) {
+      const resultItem = e.target.closest('.result-item');
+      if (resultItem) {
+        e.stopPropagation();
+        const items = Array.from(searchResults.querySelectorAll('.result-item'));
+        const index = items.indexOf(resultItem);
+        if (index !== -1 && window.selectSearchResult) {
+          window.selectSearchResult(index);
+        }
+      }
+    });
+    
+    // 4. Обработка фокуса/потери фокуса
+    searchInput.addEventListener('focus', function() {
+      isKeyboardVisible = true;
+      ignoreNextBlur = false;
+      if (searchInput.value.length >= 2) {
+        searchResults.style.display = 'block';
+      }
+    });
+    
+    searchInput.addEventListener('blur', function() {
+      if (ignoreNextBlur) {
+        ignoreNextBlur = false;
+        return;
+      }
+      
+      isKeyboardVisible = false;
+      setTimeout(() => {
+        if (!isKeyboardVisible) {
+          searchResults.style.display = 'none';
+        }
+      }, 200);
+    });
+    
+    // 5. Обработка касания вне поля ввода
+    document.addEventListener('touchstart', function(e) {
+      const isSearchClick = e.target.closest('.search-container') || 
+                           e.target.closest('#search-results') ||
+                           e.target === searchInput ||
+                           e.target.closest('.btn');
+      
+      if (!isSearchClick) {
+        closeKeyboard();
+      }
+    });
+  });
+  
+  window.closeKeyboard = function() {
+    if (searchInput) {
+      searchInput.blur();
+    }
+    if (searchResults) {
+      searchResults.style.display = 'none';
+    }
+    isKeyboardVisible = false;
   };
 })();
