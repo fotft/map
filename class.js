@@ -455,10 +455,11 @@ class Road extends Area {
     constructor(name, points) {
         super(name, points, roadClr);
         this.calculateRoadCenter();
+        this.isHighlighted = false;
+        this.highlightColor = color(255, 0, 0, 100); // Красный с прозрачностью
     }
     
     calculateRoadCenter() {
-        // Вычисляем среднее арифметическое всех точек полигона
         let center = createVector(0, 0, 0);
         for (let point of this.points) {
             center.add(point);
@@ -466,11 +467,36 @@ class Road extends Area {
         center.div(this.points.length);
         this.road_center = center;
     }
+    
     show() {
-        super.show(); 
+        // Если дорога выделена, рисуем красным, иначе обычным цветом
+        if (this.isHighlighted) {
+            noStroke();
+            fill(this.highlightColor);
+            beginShape();
+            for (let i = 0; i < this.points.length; i++) {
+                vertex(this.points[i].x, this.points[i].y, this.points[i].z);
+            }
+            endShape(CLOSE);
+        } else {
+            // Обычное отображение (как в родительском классе)
+            noStroke();
+            fill(red(this.clr), green(this.clr), blue(this.clr));
+            beginShape();
+            for (let i = 0; i < this.points.length; i++) {
+                vertex(this.points[i].x, this.points[i].y, this.points[i].z);
+            }
+            endShape(CLOSE);
+        }
+        
         if ((zoom >= 1.5) && (this.name != null) && (this.name.length > 0)) {
             this.drawRoadLabel();
         }
+    }
+    
+    // Метод для выделения/снятия выделения
+    setHighlight(highlight) {
+        this.isHighlighted = highlight;
     }
     
     drawRoadLabel() {
