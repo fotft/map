@@ -40,7 +40,7 @@ window.currentSearchResults = [];
     } else if (obj.road_center) {
       targetX = -obj.road_center.x;
       targetZ = -obj.road_center.z;
-      targetZoom = 5;
+      targetZoom = 6;
     }
     
     // Немедленно устанавливаем значения камеры
@@ -199,7 +199,7 @@ window.navigateToObject = function(obj) {
     } else if (obj.road_center) {
         targetX = -obj.road_center.x;
         targetZ = -obj.road_center.z;
-        targetZoom = 5;
+        targetZoom = 8;
     } else {
         console.log('Не удалось определить координаты объекта');
         return;
