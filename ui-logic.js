@@ -215,7 +215,7 @@ window.navigateToObject = function(obj) {
     
     console.log('Камера установлена:', { offsetX, offsetZ, zoom });
 };
-/*
+
 // Функция для обработки Enter в поле поиска
 window.handleSearchEnter = function(event) {
     if (event.key === 'Enter') {
@@ -243,91 +243,7 @@ window.handleSearchEnter = function(event) {
         }
     }
 };
-*/
-// Добавьте в ui-logic.js
-window.highlightRoad = function(roadName) {
-    // Снимаем выделение со всех дорог
-    roads.forEach(road => road.setHighlight(false));
-    
-    // Если передано название дороги, выделяем её
-    if (roadName) {
-        const road = roads.find(r => r.name === roadName);
-        if (road) {
-            road.setHighlight(true);
-            // Центрируем камеру на дороге
-            if (road.road_center) {
-                offsetX = -road.road_center.x;
-                offsetZ = -road.road_center.z;
-                zoom = 3;
-            }
-        }
-    }
-};
 
-// Обновите функцию selectSearchResult
-window.selectSearchResult = function(index) {
-    const item = window.currentSearchResults[index];
-    if (!item) return;
-    
-    console.log('Выбран объект:', item.name, item.type);
-    
-    // Если выбранная дорога - снимаем выделение с других и выделяем её
-    if (item.type === 'Дорога') {
-        window.highlightRoad(item.name);
-    } else {
-        // Снимаем выделение со всех дорог при выборе другого объекта
-        window.highlightRoad(null);
-        navigateToObject(item.object);
-    }
-    
-    document.getElementById('search-results').style.display = 'none';
-    document.getElementById('search-input').value = item.name;
-};
-
-// Обновите функцию handleSearchEnter
-window.handleSearchEnter = function(event) {
-    if (event.key === 'Enter') {
-        const query = document.getElementById('search-input').value.trim();
-        if (query.length < 2) return;
-        
-        let obj = null;
-        let type = '';
-        
-        // Ищем точное совпадение
-        [...roads, ...labels, ...districts, ...metro].forEach(item => {
-            if (item.name && item.name.toLowerCase() === query.toLowerCase()) {
-                obj = item;
-                type = item instanceof Road ? 'Дорога' : 
-                       item instanceof Label ? 'Метка' :
-                       item instanceof District ? 'Район' : 'Метро';
-            }
-        });
-        
-        if (!obj) {
-            // Ищем частичное совпадение
-            [...roads, ...labels, ...districts, ...metro].forEach(item => {
-                if (item.name && item.name.toLowerCase().includes(query.toLowerCase())) {
-                    obj = item;
-                    type = item instanceof Road ? 'Дорога' : 
-                           item instanceof Label ? 'Метка' :
-                           item instanceof District ? 'Район' : 'Метро';
-                }
-            });
-        }
-        
-        if (obj) {
-            if (type === 'Дорога') {
-                window.highlightRoad(obj.name);
-            } else {
-                window.highlightRoad(null);
-                navigateToObject(obj);
-            }
-            document.getElementById('search-results').style.display = 'none';
-        } else {
-            alert('Объект не найден');
-        }
-    }
-};
 // Обновляем анимацию камеры в основном цикле
 window.updateCameraAnimation = function() {
     // Убрали плавность для гарантированного перемещения
