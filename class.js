@@ -355,6 +355,7 @@ class Metro {
                         text(this.name + "\nвход " +(i+1), dx, dy);
                     }
                 }
+                fill(83, 178, 62);
                 if (this.icon != null) {
                     text(this.name + "\nвход " + (i+1), 0, w / 1.5 + d);
                 }
