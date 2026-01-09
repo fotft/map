@@ -457,13 +457,11 @@ class Road extends Area {
         this.calculateRoadCenter();
         this.lastFrameChecked = 0;
         this.currentFrameLabels = [];
+        this.cachedSegments = [];
+        this.cacheValidForFrames = 0;
     }
     
     calculateRoadCenter() {
-        if (!this.points || this.points.length < 2) {
-            this.road_center = createVector(0, 0, 0);
-            return;
-        }
         let center = createVector(0, 0, 0);
         for (let point of this.points) {
             center.add(point);
@@ -471,209 +469,242 @@ class Road extends Area {
         center.div(this.points.length);
         this.road_center = center;
     }
-
+    
     show() {
         super.show(); 
-        if ((zoom >= 1) && (this.name != null) && (this.name.length > 0)) {
+        if ((zoom >= 1.5) && this.name && this.name.length > 0) {
             this.drawRoadLabel();
         }
     }
     
     drawRoadLabel() {
+        // Сбрасываем кэш меток при смене кадра
         if (frameCount !== this.lastFrameChecked) {
             this.currentFrameLabels = [];
             this.lastFrameChecked = frameCount;
         }
-        if (zoom < 1) return; // FIX: Скрываем только при зуме меньше 1
-
-        let bestP1 = null, bestP2 = null;
-        let maxScreenDist = 0;
-        let bestI = -1; // Index of the best segment
-
+        
+        // Обновляем кэш сегментов каждые 30 кадров или при изменении зума
+        if (frameCount % 30 === 0 || this.cacheValidForFrames < frameCount) {
+            this.cachedSegments = this.findVisibleSegments();
+            this.cacheValidForFrames = frameCount + 30;
+        }
+        
+        if (zoom <= 2 || this.cachedSegments.length === 0) return;
+        
+        // Выбираем лучший сегмент для отображения метки
+        let bestSegment = this.cachedSegments[0];
+        
+        // Ищем сегмент, который наиболее горизонтален и длинен
+        for (let segment of this.cachedSegments) {
+            let screenLength = dist(
+                screenX(segment.p1.x, segment.p1.y, segment.p1.z),
+                screenY(segment.p1.x, segment.p1.y, segment.p1.z),
+                screenX(segment.p2.x, segment.p2.y, segment.p2.z),
+                screenY(segment.p2.x, segment.p2.y, segment.p2.z)
+            );
+            
+            // Предпочитаем более горизонтальные сегменты
+            let angle = Math.abs(Math.atan2(
+                segment.p2.z - segment.p1.z,
+                segment.p2.x - segment.p1.x
+            ));
+            if (angle > Math.PI/4 && angle < 3*Math.PI/4) continue; // Слишком вертикальные
+            
+            if (screenLength > bestSegment.screenLength) {
+                bestSegment = segment;
+            }
+        }
+        
+        if (!bestSegment || bestSegment.screenLength < 80) return;
+        
+        // Позиционируем метку
+        let pA = bestSegment.p1.copy();
+        let pB = bestSegment.p2.copy();
+        
+        // Середина сегмента
+        let segmentMid = p5.Vector.add(pA, pB).mult(0.5);
+        segmentMid.y += 0.1; // Чуть выше дороги
+        
+        // Вычисляем нормаль, направленную внутрь дороги
+        let segmentDir = p5.Vector.sub(pB, pA);
+        let normal = createVector(-segmentDir.z, 0, segmentDir.x);
+        normal.normalize();
+        
+        // Проверяем направление нормали
+        let testInside = p5.Vector.add(segmentMid, p5.Vector.mult(normal, 0.5));
+        if (!this.isPointInside(testInside)) {
+            normal.mult(-1);
+        }
+        
+        // Позиция метки - немного внутри дороги
+        let labelPos = p5.Vector.add(segmentMid, p5.Vector.mult(normal, 0.5));
+        labelPos.y += 0.3;
+        
+        // Проверяем видимость на экране
+        let screenPos = this.getScreenPosition(labelPos);
+        if (!screenPos.visible) return;
+        
+        // Проверка наложения с другими метками
+        if (this.isLabelOverlapping(screenPos.x, screenPos.y)) {
+            return;
+        }
+        
+        // Рисуем метку
+        this.drawLabel(labelPos);
+        
+        // Сохраняем позицию
+        this.currentFrameLabels.push(createVector(screenPos.x, screenPos.y));
+    }
+    
+    findVisibleSegments() {
+        let segments = [];
         let n = this.points.length;
+        
         for (let i = 0; i < n; i++) {
             let p1 = this.points[i];
             let p2 = this.points[(i + 1) % n];
             
-            // Простая проверка видимости
             let sx1 = screenX(p1.x, p1.y, p1.z);
-            let sx2 = screenX(p2.x, p2.y, p2.z);
             let sy1 = screenY(p1.x, p1.y, p1.z);
+            let sx2 = screenX(p2.x, p2.y, p2.z);
             let sy2 = screenY(p2.x, p2.y, p2.z);
             
-            // Если оба конца далеко за экраном
-            if ((sx1 < 0 && sx2 < 0) || (sx1 > width && sx2 > width)) continue;
-            if ((sy1 < 0 && sy2 < 0) || (sy1 > height && sy2 > height)) continue;
+            // Проверяем видимость сегмента
+            if (!this.isSegmentVisible(sx1, sy1, sx2, sy2)) continue;
             
-            let d = dist(sx1, sy1, sx2, sy2);
-            if (d > maxScreenDist) {
-                maxScreenDist = d;
-                bestP1 = p1;
-                bestP2 = p2;
-                bestI = i; // Store index to avoid self-intersection later
-            }
+            let screenLength = dist(sx1, sy1, sx2, sy2);
+            if (screenLength < 60) continue; // Слишком короткие
+            
+            segments.push({
+                p1: p1,
+                p2: p2,
+                screenLength: screenLength,
+                index: i
+            });
         }
         
-        // FIX: Уменьшили порог с 60 до 30, чтобы короткие дороги тоже подписывались
-        if (bestP1 == null || maxScreenDist < 30) {
-            return;
-        }
-
-        let pA = bestP1;
-        let pB = bestP2;
-        let sxA = screenX(pA.x, pA.y, pA.z);
-        let sxB = screenX(pB.x, pB.y, pB.z);
+        // Сортируем по длине (от самых длинных)
+        segments.sort((a, b) => b.screenLength - a.screenLength);
         
-        // Сортировка для правильного угла
-        if (sxA > sxB) {
-            let temp = pA;
-            pA = pB;
-            pB = temp;
-        }
-
-        let segmentDir = p5.Vector.sub(pB, pA);
-        let angle = -atan2(segmentDir.z, segmentDir.x);
-        let segmentEdgeMid = p5.Vector.add(pA, pB).mult(0.5);
-        
-        // Нормаль внутрь
-        let normal = createVector(-segmentDir.z, 0, segmentDir.x).normalize();
-        let testPoint = p5.Vector.add(segmentEdgeMid, p5.Vector.mult(normal, 0.1));
-        if (!this.isPointInsidePolygonXZ(testPoint)) {
-            normal.mult(-1);
-        }
-
-        // FIX: Передаем bestI, чтобы игнорировать текущую грань при поиске пересечения
-        let oppositePoint = this.findRayIntersection(segmentEdgeMid, normal, bestI);
-        let textPos;
-        
-        if (oppositePoint != null) {
-            // Середина между гранью и противоположной стороной
-            textPos = p5.Vector.add(segmentEdgeMid, oppositePoint).mult(0.5);
-        } else {
-            // Фолбек: сдвиг внутрь на фиксированное расстояние
-            textPos = p5.Vector.add(segmentEdgeMid, p5.Vector.mult(normal, 4.0));
-        }
-        
-        // Поднимаем текст, чтобы не было Z-fighting с дорогой
-        textPos.y -= 1.0; // Y is usually negative up in this setup, or we adjust based on camera
-
-        let sX = screenX(textPos.x, textPos.y, textPos.z);
-        let sY = screenY(textPos.x, textPos.y, textPos.z);
-        
-        textFont(font, 17); 
-        let txtW = textWidth(this.name);
-        let txtH = 20;
-
-        // FIX: Уменьшен радиус коллизии с метками (с 25 до 10), чтобы названия дорог не исчезали рядом с POI
-        for (let l of labels) {
-            if (l.level > zoom) continue;
-            let lx = screenX(l.x, l.y, l.z); // Note: Labels likely use l.location.x, checked in Label class logic
-            if (l.location) {
-                 lx = screenX(l.location.x, l.location.y, l.location.z);
-                 let ly = screenY(l.location.x, l.location.y, l.location.z);
-                 if (Math.abs(sX - lx) < (txtW/2 + 10) && Math.abs(sY - ly) < (txtH/2 + 10)) {
-                    return;
-                }
-            }
-        }
-        
-        // Коллизия с другими названиями дорог
-        for (let rect of this.currentFrameLabels) {
-            if (Math.abs(sX - rect[0]) < (txtW/2 + rect[2]/2) && 
-                Math.abs(sY - rect[1]) < (txtH/2 + rect[3]/2)) {
-                    return;
-                }
-        }
-
-        push();
-        translate(textPos.x, textPos.y, textPos.z);
-        scale(1/zoom); 
-        rotateY(angle);    
-        rotateX(Math.PI/2);     
-        gl.disable(gl.DEPTH_TEST);
-        scale(1, -1, 1);
-        textAlign(CENTER, CENTER);
-        
-        if (theme === "dark") {
-            fill(40, 40, 40, 125);
-        } else {
-            fill(215, 215, 215, 125);
-        }
-        
-        for (let r = 0; r < Math.PI * 2; r += 3 / 2) {
-            let dx = Math.cos(r) * 2;
-            let dy = Math.sin(r) * 2;
-            text(this.name, dx, dy);
-        }
-        
-        if (theme === "dark") {
-            fill(220, 220, 220, 230);
-        } else {
-            fill(50, 50, 50, 230);
-        }
-        text(this.name, 0, 0);
-        gl.enable(gl.DEPTH_TEST);
-        pop();
-        
-        this.currentFrameLabels.push([createVector(sX, sY), txtW, txtH]);
+        return segments;
     }
-
-    isPointInsidePolygonXZ(p) {
+    
+    isSegmentVisible(sx1, sy1, sx2, sy2) {
+        // Если оба конца за пределами экрана в одном направлении
+        if ((sx1 < -100 && sx2 < -100) || (sx1 > width + 100 && sx2 > width + 100)) {
+            return false;
+        }
+        if ((sy1 < -100 && sy2 < -100) || (sy1 > height + 100 && sy2 > height + 100)) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    isPointInside(point) {
+        // Упрощенная проверка нахождения точки внутри полигона
         let inside = false;
         let n = this.points.length;
+        
         for (let i = 0, j = n - 1; i < n; j = i++) {
             let pi = this.points[i];
             let pj = this.points[j];
-            if (((pi.z > p.z) != (pj.z > p.z)) &&
-                (p.x < (pj.x - pi.x) * (p.z - pi.z) / (pj.z - pi.z) + pi.x)) {
-                inside = !inside;
-            }
+            
+            let intersect = ((pi.z > point.z) !== (pj.z > point.z)) &&
+                (point.x < (pj.x - pi.x) * (point.z - pi.z) / (pj.z - pi.z) + pi.x);
+            
+            if (intersect) inside = !inside;
         }
+        
         return inside;
     }
-
-    findRayIntersection(origin, dir, ignoreIndex) {
-        let closestIntersection = null;
-        let minDistSq = Infinity;
-        let n = this.points.length;
+    
+    getScreenPosition(worldPos) {
+        let sx = screenX(worldPos.x, worldPos.y, worldPos.z);
+        let sy = screenY(worldPos.x, worldPos.y, worldPos.z);
+        let sz = screenZ(worldPos.x, worldPos.y, worldPos.z);
         
-        for (let i = 0; i < n; i++) {
-            // FIX: Пропускаем грань, с которой пускаем луч, чтобы не найти пересечение на старте
-            if (i === ignoreIndex) continue;
-
-            let p1 = this.points[i];
-            let p2 = this.points[(i + 1) % n];
+        // Проверяем, видна ли точка на экране и не слишком ли далеко
+        let visible = (sx >= -50 && sx <= width + 50 && 
+                      sy >= -50 && sy <= height + 50 &&
+                      sz > 0 && sz < 1000);
+        
+        return { x: sx, y: sy, z: sz, visible: visible };
+    }
+    
+    isLabelOverlapping(screenXPos, screenYPos) {
+        textFont(font, 16);
+        let textWidthVal = textWidth(this.name);
+        let textHeight = 18;
+        
+        // Проверка с глобальными метками
+        for (let label of labels) {
+            if (label.level > zoom) continue;
             
-            let intersection = this.getLineIntersectionXZ(origin, p5.Vector.add(origin, p5.Vector.mult(dir, 1000)), p1, p2);
-            if (intersection != null) {
-                let dSq = p5.Vector.dist(origin, intersection);
-                // Минимальная дистанция все равно нужна, но теперь мы игнорируем саму грань
-                if (dSq > 0.001 && dSq < minDistSq) { 
-                    minDistSq = dSq;
-                    closestIntersection = intersection;
-                }
+            let labelScreenPos = this.getScreenPosition(label.location);
+            if (!labelScreenPos.visible) continue;
+            
+            let distance = dist(screenXPos, screenYPos, labelScreenPos.x, labelScreenPos.y);
+            if (distance < textWidthVal/2 + 30) {
+                return true;
             }
         }
-        return closestIntersection;
+        
+        // Проверка с другими метками дорог в текущем кадре
+        for (let existingPos of this.currentFrameLabels) {
+            let distance = dist(screenXPos, screenYPos, existingPos.x, existingPos.y);
+            if (distance < textWidthVal/2 + 20) {
+                return true;
+            }
+        }
+        
+        return false;
     }
-
-    getLineIntersectionXZ(p1, p2, p3, p4) {
-        let x1 = p1.x, z1 = p1.z;
-        let x2 = p2.x, z2 = p2.z;
-        let x3 = p3.x, z3 = p3.z;
-        let x4 = p4.x, z4 = p4.z;
-
-        let denom = (z4 - z3) * (x2 - x1) - (x4 - x3) * (z2 - z1);
-        if (denom === 0) {
-            return null;
+    
+    drawLabel(position) {
+        push();
+        translate(position.x, position.y, position.z);
+        
+        // Определяем угол для поворота текста вдоль дороги
+        let cameraPos = createVector(cameraX, cameraY, cameraZ);
+        let toCamera = p5.Vector.sub(cameraPos, position);
+        toCamera.normalize();
+        
+        // Вычисляем угол поворота к камере (billboard эффект)
+        let billboardAngle = atan2(toCamera.x, toCamera.z);
+        rotateY(billboardAngle);
+        
+        // Масштабируем в зависимости от зума
+        let scaleFactor = 1 / (zoom * 0.7);
+        scale(scaleFactor);
+        
+        // Рисуем фон текста
+        textAlign(CENTER, CENTER);
+        if (theme === "dark") {
+            fill(40, 40, 40, 220);
+        } else {
+            fill(245, 245, 245, 220);
         }
-        let ua = ((x4 - x3) * (z1 - z3) - (z4 - z3) * (x1 - x3)) / denom;
-        let ub = ((x2 - x1) * (z1 - z3) - (z2 - z1) * (x1 - x3)) / denom;
-        if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
-            // Возвращаем точку с Y от первой линии (хотя для дорог они обычно на одной высоте)
-            return createVector(x1 + ua * (x2 - x1), p1.y, z1 + ua * (z2 - z1));
+        
+        // Обводка текста
+        noStroke();
+        rectMode(CENTER);
+        let textWidthVal = textWidth(this.name);
+        let textHeight = 18;
+        rect(0, 0, textWidthVal + 14, textHeight + 8, 6);
+        
+        // Рисуем текст
+        if (theme === "dark") {
+            fill(220, 220, 220);
+        } else {
+            fill(40, 40, 40);
         }
-        return null;
+        
+        textFont(font, 16);
+        text(this.name, 0, 0);
+        
+        pop();
     }
 }
 
