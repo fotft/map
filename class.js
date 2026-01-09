@@ -459,173 +459,221 @@ class Road extends Area {
         this.currentFrameLabels = [];
     }
     
-    // ИСПРАВЛЕНИЕ 1: Ищем центр на самом длинном сегменте дороги
     calculateRoadCenter() {
         if (!this.points || this.points.length < 2) {
             this.road_center = createVector(0, 0, 0);
             return;
         }
-
-        let longestSegmentMid = createVector(0,0,0);
-        let maxLen = -1;
-
-        // Проходим по всем сегментам и ищем самый длинный
-        for (let i = 0; i < this.points.length - 1; i++) {
-            let p1 = this.points[i];
-            let p2 = this.points[i+1];
-            let dist = p5.Vector.dist(p1, p2);
-            
-            if (dist > maxLen) {
-                maxLen = dist;
-                // Середина этого сегмента
-                longestSegmentMid = p5.Vector.add(p1, p2).mult(0.5);
-            }
+        let center = createVector(0, 0, 0);
+        for (let point of this.points) {
+            center.add(point);
         }
-        
-        // Для замыкающего сегмента (если дорога кольцевая/замкнутая)
-        if (this.points.length > 2) {
-             let p1 = this.points[this.points.length - 1];
-             let p2 = this.points[0];
-             let dist = p5.Vector.dist(p1, p2);
-             if (dist > maxLen) {
-                 longestSegmentMid = p5.Vector.add(p1, p2).mult(0.5);
-             }
-        }
-
-        this.road_center = longestSegmentMid;
+        center.div(this.points.length);
+        this.road_center = center;
     }
 
     show() {
-        // Геометрия рисуется через globalMesh в draw.js
-        // super.show(); 
-        
-        // Рисуем текст
-        if ((zoom >= 2.0) && (this.name != null) && (this.name.length > 0)) {
+        super.show(); 
+        if ((zoom >= 1) && (this.name != null) && (this.name.length > 0)) {
             this.drawRoadLabel();
         }
     }
     
-    // ИСПРАВЛЕНИЕ 2: Улучшенная отрисовка текста вдоль дороги
     drawRoadLabel() {
-        // Сбрасываем кэш коллизий каждый кадр (глобально или локально)
-        // Здесь используется локальная проверка в рамках объекта, 
-        // но лучше бы это делать глобально. Для простоты оставим пока так.
-        
-        // Находим лучший видимый сегмент на ЭКРАНЕ
-        let bestP1 = null;
-        let bestP2 = null;
-        let maxScreenDist = 0;
-        
-        // Проверяем видимость хотя бы одной точки (грубая отсечка)
-        let visibleCount = 0;
-        for(let p of this.points) {
-            if (isPointVisible(p)) visibleCount++;
+        if (frameCount !== this.lastFrameChecked) {
+            this.currentFrameLabels = [];
+            this.lastFrameChecked = frameCount;
         }
-        if (visibleCount === 0) return;
+        if (zoom < 1) return; // FIX: Скрываем только при зуме меньше 1
+
+        let bestP1 = null, bestP2 = null;
+        let maxScreenDist = 0;
+        let bestI = -1; // Index of the best segment
 
         let n = this.points.length;
         for (let i = 0; i < n; i++) {
-            // Берем пары точек (сегменты)
             let p1 = this.points[i];
-            let p2 = this.points[(i + 1) % n]; // Замыкаем полигон
+            let p2 = this.points[(i + 1) % n];
             
-            // Расстояние в 3D (пропускаем слишком короткие "технические" сегменты)
-            if (p5.Vector.dist(p1, p2) < 5) continue;
-
-            // Проецируем на экран
-            let sp1 = screenPosition(p1.x, p1.y, p1.z);
-            let sp2 = screenPosition(p2.x, p2.y, p2.z);
-
-            // Пропускаем, если обе точки за экраном
-            // (Простая проверка: Z > 1 означает перед камерой в WebGL по умолчанию, 
-            // но screenPosition в p5 возвращает Z как depth. Отрицательный Z часто означает "за спиной").
-            // Упрощенно: проверяем попадание в пределы канваса с запасом
-            let m = 100; // margin
-            let p1In = (sp1.x > -m && sp1.x < width+m && sp1.y > -m && sp1.y < height+m);
-            let p2In = (sp2.x > -m && sp2.x < width+m && sp2.y > -m && sp2.y < height+m);
+            // Простая проверка видимости
+            let sx1 = screenX(p1.x, p1.y, p1.z);
+            let sx2 = screenX(p2.x, p2.y, p2.z);
+            let sy1 = screenY(p1.x, p1.y, p1.z);
+            let sy2 = screenY(p2.x, p2.y, p2.z);
             
-            if (!p1In && !p2In) continue;
-
-            // Считаем длину отрезка НА ЭКРАНЕ
-            let screenLen = dist(sp1.x, sp1.y, sp2.x, sp2.y);
+            // Если оба конца далеко за экраном
+            if ((sx1 < 0 && sx2 < 0) || (sx1 > width && sx2 > width)) continue;
+            if ((sy1 < 0 && sy2 < 0) || (sy1 > height && sy2 > height)) continue;
             
-            if (screenLen > maxScreenDist) {
-                maxScreenDist = screenLen;
+            let d = dist(sx1, sy1, sx2, sy2);
+            if (d > maxScreenDist) {
+                maxScreenDist = d;
                 bestP1 = p1;
                 bestP2 = p2;
+                bestI = i; // Store index to avoid self-intersection later
             }
         }
-
-        // Если самый длинный кусок на экране слишком мал для текста - не рисуем
-        if (maxScreenDist < 100) return; 
-        if (!bestP1 || !bestP2) return;
-
-        // Вычисляем середину и угол
-        let mid = p5.Vector.add(bestP1, bestP2).mult(0.5);
         
-        // Вычисляем угол поворота текста в плоскости XZ
-        // Math.atan2(z, x)
-        let angle = Math.atan2(bestP2.z - bestP1.z, bestP2.x - bestP1.x);
+        // FIX: Уменьшили порог с 60 до 30, чтобы короткие дороги тоже подписывались
+        if (bestP1 == null || maxScreenDist < 30) {
+            return;
+        }
 
-        // ПРОВЕРКА НАПРАВЛЕНИЯ ТЕКСТА
-        // Проверяем экранные координаты, чтобы текст всегда читался слева направо
-        let s1 = screenPosition(bestP1.x, bestP1.y, bestP1.z);
-        let s2 = screenPosition(bestP2.x, bestP2.y, bestP2.z);
+        let pA = bestP1;
+        let pB = bestP2;
+        let sxA = screenX(pA.x, pA.y, pA.z);
+        let sxB = screenX(pB.x, pB.y, pB.z);
         
-        // Если вектор на экране идет справа налево (x уменьшается), разворачиваем текст на 180
-        if (s2.x < s1.x) {
-            angle += Math.PI;
+        // Сортировка для правильного угла
+        if (sxA > sxB) {
+            let temp = pA;
+            pA = pB;
+            pB = temp;
+        }
+
+        let segmentDir = p5.Vector.sub(pB, pA);
+        let angle = -atan2(segmentDir.z, segmentDir.x);
+        let segmentEdgeMid = p5.Vector.add(pA, pB).mult(0.5);
+        
+        // Нормаль внутрь
+        let normal = createVector(-segmentDir.z, 0, segmentDir.x).normalize();
+        let testPoint = p5.Vector.add(segmentEdgeMid, p5.Vector.mult(normal, 0.1));
+        if (!this.isPointInsidePolygonXZ(testPoint)) {
+            normal.mult(-1);
+        }
+
+        // FIX: Передаем bestI, чтобы игнорировать текущую грань при поиске пересечения
+        let oppositePoint = this.findRayIntersection(segmentEdgeMid, normal, bestI);
+        let textPos;
+        
+        if (oppositePoint != null) {
+            // Середина между гранью и противоположной стороной
+            textPos = p5.Vector.add(segmentEdgeMid, oppositePoint).mult(0.5);
+        } else {
+            // Фолбек: сдвиг внутрь на фиксированное расстояние
+            textPos = p5.Vector.add(segmentEdgeMid, p5.Vector.mult(normal, 4.0));
+        }
+        
+        // Поднимаем текст, чтобы не было Z-fighting с дорогой
+        textPos.y -= 1.0; // Y is usually negative up in this setup, or we adjust based on camera
+
+        let sX = screenX(textPos.x, textPos.y, textPos.z);
+        let sY = screenY(textPos.x, textPos.y, textPos.z);
+        
+        textFont(font, 17); 
+        let txtW = textWidth(this.name);
+        let txtH = 20;
+
+        // FIX: Уменьшен радиус коллизии с метками (с 25 до 10), чтобы названия дорог не исчезали рядом с POI
+        for (let l of labels) {
+            if (l.level > zoom) continue;
+            let lx = screenX(l.x, l.y, l.z); // Note: Labels likely use l.location.x, checked in Label class logic
+            if (l.location) {
+                 lx = screenX(l.location.x, l.location.y, l.location.z);
+                 let ly = screenY(l.location.x, l.location.y, l.location.z);
+                 if (Math.abs(sX - lx) < (txtW/2 + 10) && Math.abs(sY - ly) < (txtH/2 + 10)) {
+                    return;
+                }
+            }
+        }
+        
+        // Коллизия с другими названиями дорог
+        for (let rect of this.currentFrameLabels) {
+            if (Math.abs(sX - rect[0]) < (txtW/2 + rect[2]/2) && 
+                Math.abs(sY - rect[1]) < (txtH/2 + rect[3]/2)) {
+                    return;
+                }
         }
 
         push();
-        // Поднимаем текст чуть выше дороги (-1.5 по Y), чтобы не было z-fighting
-        translate(mid.x, mid.y - 1.5, mid.z);
-        
-        // Применяем поворот. 
-        // rotateY - поворот вокруг вертикальной оси (азимут)
-        // rotateX(PI/2) - кладем текст "на землю"
-        rotateY(-angle); 
-        rotateX(Math.PI / 2);
-        
-        // Отражаем по одной из осей, если текст зеркальный (зависит от системы координат)
-        // Обычно в p5 WebGL Y инвертирован или Z. Экспериментально: scale(1, -1) часто нужен.
-        // Но с rotateX(PI/2) текст "лежит". Пробуем без скейла или подбираем.
-        // Если текст вверх ногами, раскомментируйте scale
-        scale(1, -1); 
-
-        // Масштаб текста, чтобы он оставался читаемым
-        // Делаем его фиксированным в мировых единицах или зависимым от зума?
-        // Чтобы лежал на дороге как разметка: фиксированный размер.
-        scale(1 / zoom); 
-        
-        gl.disable(gl.DEPTH_TEST); // Рисуем поверх дороги
-        
+        translate(textPos.x, textPos.y, textPos.z);
+        scale(1/zoom); 
+        rotateY(angle);    
+        rotateX(Math.PI/2);     
+        gl.disable(gl.DEPTH_TEST);
+        scale(1, -1, 1);
         textAlign(CENTER, CENTER);
-        textFont(font, 18); // Чуть крупнее шрифт
-
-        // Тень (обводка) для читаемости
+        
         if (theme === "dark") {
-            fill(40, 40, 40, 200);
+            fill(40, 40, 40, 125);
         } else {
-            fill(255, 255, 255, 200);
+            fill(215, 215, 215, 125);
         }
-        // Рисуем "обводку" смещением
-        for (let x = -1; x <= 1; x++) {
-            for (let y = -1; y <= 1; y++) {
-                text(this.name, x, y);
-            }
+        
+        for (let r = 0; r < Math.PI * 2; r += 3 / 2) {
+            let dx = Math.cos(r) * 2;
+            let dy = Math.sin(r) * 2;
+            text(this.name, dx, dy);
         }
-
-        // Основной цвет текста
+        
         if (theme === "dark") {
-            fill(220, 220, 220);
+            fill(220, 220, 220, 230);
         } else {
-            fill(50, 50, 50);
+            fill(50, 50, 50, 230);
         }
         text(this.name, 0, 0);
-        
         gl.enable(gl.DEPTH_TEST);
         pop();
+        
+        this.currentFrameLabels.push([createVector(sX, sY), txtW, txtH]);
+    }
+
+    isPointInsidePolygonXZ(p) {
+        let inside = false;
+        let n = this.points.length;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+            let pi = this.points[i];
+            let pj = this.points[j];
+            if (((pi.z > p.z) != (pj.z > p.z)) &&
+                (p.x < (pj.x - pi.x) * (p.z - pi.z) / (pj.z - pi.z) + pi.x)) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
+
+    findRayIntersection(origin, dir, ignoreIndex) {
+        let closestIntersection = null;
+        let minDistSq = Infinity;
+        let n = this.points.length;
+        
+        for (let i = 0; i < n; i++) {
+            // FIX: Пропускаем грань, с которой пускаем луч, чтобы не найти пересечение на старте
+            if (i === ignoreIndex) continue;
+
+            let p1 = this.points[i];
+            let p2 = this.points[(i + 1) % n];
+            
+            let intersection = this.getLineIntersectionXZ(origin, p5.Vector.add(origin, p5.Vector.mult(dir, 1000)), p1, p2);
+            if (intersection != null) {
+                let dSq = p5.Vector.dist(origin, intersection);
+                // Минимальная дистанция все равно нужна, но теперь мы игнорируем саму грань
+                if (dSq > 0.001 && dSq < minDistSq) { 
+                    minDistSq = dSq;
+                    closestIntersection = intersection;
+                }
+            }
+        }
+        return closestIntersection;
+    }
+
+    getLineIntersectionXZ(p1, p2, p3, p4) {
+        let x1 = p1.x, z1 = p1.z;
+        let x2 = p2.x, z2 = p2.z;
+        let x3 = p3.x, z3 = p3.z;
+        let x4 = p4.x, z4 = p4.z;
+
+        let denom = (z4 - z3) * (x2 - x1) - (x4 - x3) * (z2 - z1);
+        if (denom === 0) {
+            return null;
+        }
+        let ua = ((x4 - x3) * (z1 - z3) - (z4 - z3) * (x1 - x3)) / denom;
+        let ub = ((x2 - x1) * (z1 - z3) - (z2 - z1) * (x1 - x3)) / denom;
+        if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+            // Возвращаем точку с Y от первой линии (хотя для дорог они обычно на одной высоте)
+            return createVector(x1 + ua * (x2 - x1), p1.y, z1 + ua * (z2 - z1));
+        }
+        return null;
     }
 }
 
