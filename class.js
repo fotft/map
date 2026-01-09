@@ -262,7 +262,7 @@ class Label {
                             image(this.icon, 0, 0, w / 1.5, h / 1.5);
                         }
                         else {
-                            image(this.icon, 0, 0, w / 2, h / 2;
+                            image(this.icon, 0, 0, w / 2, h / 2);
                         }
                 }
                 scale(zoom);
