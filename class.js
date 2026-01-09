@@ -487,9 +487,9 @@ class Road extends Area {
             let p2 = this.points[(i + 1) % n];
             let mid = p5.Vector.add(p1, p2).mult(0.5);
             let sx1 = screenX(p1.x, p1.y, p1.z);
-            let sy1 = screenX(p1.x, p1.y, p1.z);
+            let sy1 = screenY(p1.x, p1.y, p1.z);
             let sx2 = screenX(p2.x, p2.y, p2.z);
-            let sy2 = screenX(p2.x, p2.y, p2.z);
+            let sy2 = screenY(p2.x, p2.y, p2.z);
             if ((sx1 < 0 && sx2 < 0) || (sx1 > width && sx2 > width)) {
                 continue;
             }
