@@ -454,94 +454,180 @@ class Railway {
 class Road extends Area {
     constructor(name, points) {
         super(name, points, roadClr);
-        this.cachedSegment = null;
+        this.calculateRoadCenter();
+        this.lastFrameChecked = 0;
+        this.currentFrameLabels = [];
+    }
+    
+    // ИСПРАВЛЕНИЕ 1: Ищем центр на самом длинном сегменте дороги
+    calculateRoadCenter() {
+        if (!this.points || this.points.length < 2) {
+            this.road_center = createVector(0, 0, 0);
+            return;
+        }
+
+        let longestSegmentMid = createVector(0,0,0);
+        let maxLen = -1;
+
+        // Проходим по всем сегментам и ищем самый длинный
+        for (let i = 0; i < this.points.length - 1; i++) {
+            let p1 = this.points[i];
+            let p2 = this.points[i+1];
+            let dist = p5.Vector.dist(p1, p2);
+            
+            if (dist > maxLen) {
+                maxLen = dist;
+                // Середина этого сегмента
+                longestSegmentMid = p5.Vector.add(p1, p2).mult(0.5);
+            }
+        }
+        
+        // Для замыкающего сегмента (если дорога кольцевая/замкнутая)
+        if (this.points.length > 2) {
+             let p1 = this.points[this.points.length - 1];
+             let p2 = this.points[0];
+             let dist = p5.Vector.dist(p1, p2);
+             if (dist > maxLen) {
+                 longestSegmentMid = p5.Vector.add(p1, p2).mult(0.5);
+             }
+        }
+
+        this.road_center = longestSegmentMid;
     }
 
     show() {
-        super.show();
-        if (zoom >= 1.5 && this.name) {
+        // Геометрия рисуется через globalMesh в draw.js
+        // super.show(); 
+        
+        // Рисуем текст
+        if ((zoom >= 2.0) && (this.name != null) && (this.name.length > 0)) {
             this.drawRoadLabel();
         }
     }
-
+    
+    // ИСПРАВЛЕНИЕ 2: Улучшенная отрисовка текста вдоль дороги
     drawRoadLabel() {
-        if (zoom <= 2) return;
-
-        if (!this.cachedSegment) {
-            this.cachedSegment = this.findBestSegment();
+        // Сбрасываем кэш коллизий каждый кадр (глобально или локально)
+        // Здесь используется локальная проверка в рамках объекта, 
+        // но лучше бы это делать глобально. Для простоты оставим пока так.
+        
+        // Находим лучший видимый сегмент на ЭКРАНЕ
+        let bestP1 = null;
+        let bestP2 = null;
+        let maxScreenDist = 0;
+        
+        // Проверяем видимость хотя бы одной точки (грубая отсечка)
+        let visibleCount = 0;
+        for(let p of this.points) {
+            if (isPointVisible(p)) visibleCount++;
         }
-        if (!this.cachedSegment) return;
+        if (visibleCount === 0) return;
 
-        const { pA, pB } = this.cachedSegment;
-
-        let mid = p5.Vector.add(pA, pB).mult(0.5);
-        mid.y += 0.6;
-
-        let sX = screenX(mid.x, mid.y, mid.z);
-        let sY = screenY(mid.x, mid.y, mid.z);
-
-        textFont(font, 17);
-        let txtW = textWidth(this.name);
-        let txtH = 20;
-
-        push();
-        translate(mid.x, mid.y, mid.z);
-
-        // billboard
-        rotateY(-angleY);
-        rotateX(-angleX);
-        scale(1 / zoom);
-
-        gl.disable(gl.DEPTH_TEST);
-        textAlign(CENTER, CENTER);
-
-        if (theme === "dark") fill(40, 40, 40, 160);
-        else fill(215, 215, 215, 160);
-
-        for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
-            text(this.name, cos(a) * 2, sin(a) * 2);
-        }
-
-        if (theme === "dark") fill(230);
-        else fill(40);
-
-        text(this.name, 0, 0);
-
-        gl.enable(gl.DEPTH_TEST);
-        pop();
-    }
-
-    findBestSegment() {
-        let best = null;
-        let maxLen = 0;
-
-        for (let i = 0; i < this.points.length - 1; i++) {
+        let n = this.points.length;
+        for (let i = 0; i < n; i++) {
+            // Берем пары точек (сегменты)
             let p1 = this.points[i];
-            let p2 = this.points[i + 1];
+            let p2 = this.points[(i + 1) % n]; // Замыкаем полигон
+            
+            // Расстояние в 3D (пропускаем слишком короткие "технические" сегменты)
+            if (p5.Vector.dist(p1, p2) < 5) continue;
 
-            let sx1 = screenX(p1.x, p1.y, p1.z);
-            let sy1 = screenY(p1.x, p1.y, p1.z);
-            let sx2 = screenX(p2.x, p2.y, p2.z);
-            let sy2 = screenY(p2.x, p2.y, p2.z);
+            // Проецируем на экран
+            let sp1 = screenPosition(p1.x, p1.y, p1.z);
+            let sp2 = screenPosition(p2.x, p2.y, p2.z);
 
-            if (
-                (sx1 < 0 && sx2 < 0) ||
-                (sx1 > width && sx2 > width) ||
-                (sy1 < 0 && sy2 < 0) ||
-                (sy1 > height && sy2 > height)
-            ) continue;
+            // Пропускаем, если обе точки за экраном
+            // (Простая проверка: Z > 1 означает перед камерой в WebGL по умолчанию, 
+            // но screenPosition в p5 возвращает Z как depth. Отрицательный Z часто означает "за спиной").
+            // Упрощенно: проверяем попадание в пределы канваса с запасом
+            let m = 100; // margin
+            let p1In = (sp1.x > -m && sp1.x < width+m && sp1.y > -m && sp1.y < height+m);
+            let p2In = (sp2.x > -m && sp2.x < width+m && sp2.y > -m && sp2.y < height+m);
+            
+            if (!p1In && !p2In) continue;
 
-            let d = dist(sx1, sy1, sx2, sy2);
-            if (d > maxLen) {
-                maxLen = d;
-                best = { pA: p1, pB: p2 };
+            // Считаем длину отрезка НА ЭКРАНЕ
+            let screenLen = dist(sp1.x, sp1.y, sp2.x, sp2.y);
+            
+            if (screenLen > maxScreenDist) {
+                maxScreenDist = screenLen;
+                bestP1 = p1;
+                bestP2 = p2;
             }
         }
 
-        return maxLen > 80 ? best : null;
+        // Если самый длинный кусок на экране слишком мал для текста - не рисуем
+        if (maxScreenDist < 100) return; 
+        if (!bestP1 || !bestP2) return;
+
+        // Вычисляем середину и угол
+        let mid = p5.Vector.add(bestP1, bestP2).mult(0.5);
+        
+        // Вычисляем угол поворота текста в плоскости XZ
+        // Math.atan2(z, x)
+        let angle = Math.atan2(bestP2.z - bestP1.z, bestP2.x - bestP1.x);
+
+        // ПРОВЕРКА НАПРАВЛЕНИЯ ТЕКСТА
+        // Проверяем экранные координаты, чтобы текст всегда читался слева направо
+        let s1 = screenPosition(bestP1.x, bestP1.y, bestP1.z);
+        let s2 = screenPosition(bestP2.x, bestP2.y, bestP2.z);
+        
+        // Если вектор на экране идет справа налево (x уменьшается), разворачиваем текст на 180
+        if (s2.x < s1.x) {
+            angle += Math.PI;
+        }
+
+        push();
+        // Поднимаем текст чуть выше дороги (-1.5 по Y), чтобы не было z-fighting
+        translate(mid.x, mid.y - 1.5, mid.z);
+        
+        // Применяем поворот. 
+        // rotateY - поворот вокруг вертикальной оси (азимут)
+        // rotateX(PI/2) - кладем текст "на землю"
+        rotateY(-angle); 
+        rotateX(Math.PI / 2);
+        
+        // Отражаем по одной из осей, если текст зеркальный (зависит от системы координат)
+        // Обычно в p5 WebGL Y инвертирован или Z. Экспериментально: scale(1, -1) часто нужен.
+        // Но с rotateX(PI/2) текст "лежит". Пробуем без скейла или подбираем.
+        // Если текст вверх ногами, раскомментируйте scale
+        scale(1, -1); 
+
+        // Масштаб текста, чтобы он оставался читаемым
+        // Делаем его фиксированным в мировых единицах или зависимым от зума?
+        // Чтобы лежал на дороге как разметка: фиксированный размер.
+        scale(1 / zoom); 
+        
+        gl.disable(gl.DEPTH_TEST); // Рисуем поверх дороги
+        
+        textAlign(CENTER, CENTER);
+        textFont(font, 18); // Чуть крупнее шрифт
+
+        // Тень (обводка) для читаемости
+        if (theme === "dark") {
+            fill(40, 40, 40, 200);
+        } else {
+            fill(255, 255, 255, 200);
+        }
+        // Рисуем "обводку" смещением
+        for (let x = -1; x <= 1; x++) {
+            for (let y = -1; y <= 1; y++) {
+                text(this.name, x, y);
+            }
+        }
+
+        // Основной цвет текста
+        if (theme === "dark") {
+            fill(220, 220, 220);
+        } else {
+            fill(50, 50, 50);
+        }
+        text(this.name, 0, 0);
+        
+        gl.enable(gl.DEPTH_TEST);
+        pop();
     }
 }
-
 
 class Sidewalk {
     constructor(points) {
