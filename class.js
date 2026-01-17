@@ -492,10 +492,9 @@ class Road extends Area {
         
         if (zoom <= 2 || this.cachedSegments.length === 0) return;
         
-        // Выбираем лучший сегмент для отображения метки
+        // 1. Выбираем лучший сегмент (бордюр) для привязки
         let bestSegment = this.cachedSegments[0];
         
-        // Ищем сегмент, который наиболее горизонтален и длинен
         for (let segment of this.cachedSegments) {
             let screenLength = dist(
                 screenX(segment.p1.x, segment.p1.y, segment.p1.z),
@@ -504,12 +503,12 @@ class Road extends Area {
                 screenY(segment.p2.x, segment.p2.y, segment.p2.z)
             );
             
-            // Предпочитаем более горизонтальные сегменты
+            // Предпочитаем более горизонтальные сегменты для читаемости
             let angle = Math.abs(Math.atan2(
                 segment.p2.z - segment.p1.z,
                 segment.p2.x - segment.p1.x
             ));
-            if (angle > Math.PI/4 && angle < 3*Math.PI/4) continue; // Слишком вертикальные
+            if (angle > Math.PI/4 && angle < 3*Math.PI/4) continue; 
             
             if (screenLength > bestSegment.screenLength) {
                 bestSegment = segment;
@@ -518,34 +517,70 @@ class Road extends Area {
         
         if (!bestSegment || bestSegment.screenLength < 80) return;
         
-        // Позиционируем метку
+        // 2. Находим середину выбранного края
         let pA = bestSegment.p1.copy();
         let pB = bestSegment.p2.copy();
-        
-        // Середина сегмента
         let segmentMid = p5.Vector.add(pA, pB).mult(0.5);
-        segmentMid.y += 0.1; // Чуть выше дороги
         
-        // Вычисляем нормаль, направленную внутрь дороги
-        let segmentDir = p5.Vector.sub(pB, pA);
-        let normal = createVector(-segmentDir.z, 0, segmentDir.x);
-        normal.normalize();
-        
-        // Проверяем направление нормали
-        let testInside = p5.Vector.add(segmentMid, p5.Vector.mult(normal, 0.5));
-        if (!this.isPointInside(testInside)) {
-            normal.mult(-1);
+        // Вектор направления сегмента
+        let segmentDir = p5.Vector.sub(pB, pA).normalize();
+
+        // 3. Ищем ПРОТИВОПОЛОЖНЫЙ сегмент (другую сторону дороги)
+        // Чтобы найти центр, нам нужно усреднить положение двух обочин
+        let bestOpposite = null;
+        let closestDist = Infinity;
+
+        for (let other of this.cachedSegments) {
+            if (other === bestSegment) continue;
+
+            let otherDir = p5.Vector.sub(other.p2, other.p1).normalize();
+            
+            // Проверяем, что сегмент параллелен и направлен в обратную сторону 
+            // (скалярное произведение близко к -1)
+            let dot = segmentDir.dot(otherDir);
+            
+            if (dot < -0.8) { // -0.8 допускает небольшую кривизну дороги
+                let otherMid = p5.Vector.add(other.p1, other.p2).mult(0.5);
+                let d = segmentMid.dist(otherMid);
+                
+                // Ищем ближайший противоположный сегмент
+                if (d < closestDist) {
+                    closestDist = d;
+                    bestOpposite = other;
+                }
+            }
         }
+
+        let labelPos;
+
+        // 4. Вычисляем позицию метки
+        if (bestOpposite) {
+            // Если нашли вторую сторону: берем среднее между центрами сегментов
+            let otherMid = p5.Vector.add(bestOpposite.p1, bestOpposite.p2).mult(0.5);
+            labelPos = p5.Vector.add(segmentMid, otherMid).mult(0.5);
+        } else {
+            // FALLBACK: Если видна только одна сторона дороги
+            // Используем старый метод с нормалью, но увеличиваем отступ
+            // или пытаемся сдвинуть в сторону общего центра дороги
+            let normal = createVector(-segmentDir.z, 0, segmentDir.x);
+            
+            // Проверка "внутрь"
+            let testInside = p5.Vector.add(segmentMid, p5.Vector.mult(normal, 2));
+            if (!this.isPointInside(testInside)) {
+                normal.mult(-1);
+            }
+            
+            // Смещаем сильнее (например, на 5 единиц), чтобы уйти от края
+            labelPos = p5.Vector.add(segmentMid, p5.Vector.mult(normal, 5.0));
+        }
+
+        // Поднимаем метку чуть выше (y), чтобы она не проваливалась в текстуру
+        labelPos.y += 0.5;
         
-        // Позиция метки - немного внутри дороги
-        let labelPos = p5.Vector.add(segmentMid, p5.Vector.mult(normal, 0.5));
-        labelPos.y += 0.3;
-        
-        // Проверяем видимость на экране
+        // 5. Проверки видимости и наложения (стандартная логика)
         let screenPos = this.getScreenPosition(labelPos);
         if (!screenPos.visible) return;
         
-        // Проверка наложения с другими метками
         if (this.isLabelOverlapping(screenPos.x, screenPos.y)) {
             return;
         }
