@@ -453,6 +453,173 @@ class Railway {
 
 class Road extends Area {
     constructor(name, points) {
+        super(name, points, roadClr); // roadClr глобальная
+        this.calculateRoadCenter();
+        
+        // Кэширование
+        this.lastFrameChecked = 0;
+        this.cachedLabelData = null; // Храним позицию И угол
+        this.cacheValidUntil = 0;
+        
+        // Настройки отрисовки
+        this.labelUpdateInterval = 10; // Обновлять позицию каждые N кадров
+    }
+    
+    calculateRoadCenter() {
+        let center = createVector(0, 0, 0);
+        if (this.points.length === 0) return;
+        for (let point of this.points) center.add(point);
+        center.div(this.points.length);
+        this.road_center = center;
+    }
+    
+    show() {
+        super.show(); 
+        
+        // Проверка зума и наличия имени
+        if ((zoom >= 1.5) && this.name && this.name.length > 0) {
+            this.drawRoadLabel();
+        }
+    }
+    
+    drawRoadLabel() {
+        // 1. Проверяем кэш
+        if (frameCount > this.cacheValidUntil || !this.cachedLabelData) {
+            this.cachedLabelData = this.calculateLabelTransform();
+            this.cacheValidUntil = frameCount + this.labelUpdateInterval;
+        }
+        
+        // Если данных нет (дорога не видна), выходим
+        if (!this.cachedLabelData) return;
+
+        let { pos, angle } = this.cachedLabelData;
+
+        // 2. Проверка видимости центральной точки метки на экране
+        // Мы не проверяем overlap здесь для скорости, но можно добавить
+        let sx = screenX(pos.x, pos.y, pos.z);
+        let sy = screenY(pos.x, pos.y, pos.z);
+        
+        if (sx < -100 || sx > width + 100 || sy < -100 || sy > height + 100) return;
+
+        // 3. Отрисовка
+        push();
+        
+        // Перемещаем в центр видимого участка
+        translate(pos.x, pos.y + 2, pos.z); // +2 чтобы приподнять над асфальтом (z-fighting fix)
+
+        // ЛОГИКА ПОВОРОТА:
+        
+        // А. Определяем вектор от текста к камере
+        let camPos = createVector(cameraX, cameraY, cameraZ); // Убедитесь, что эти переменные доступны
+        let toCam = p5.Vector.sub(camPos, pos);
+        
+        // Б. Проверяем читаемость ("вверх ногами" или нет)
+        // Вектор направления дороги
+        let roadDir = createVector(cos(angle), 0, sin(angle));
+        
+        // Используем скалярное произведение, чтобы понять, смотрит ли текст на нас "правильно"
+        // Проецируем вектор "к камере" на направление дороги
+        let angleDiff = p5.Vector.angleBetween(roadDir, createVector(toCam.x, 0, toCam.z));
+        
+        // Если угол острый по отношению к движению, возможно, стоит развернуть текст
+        // Но проще проверить проекцию на "перпендикуляр" дороги (вектор чтения текста)
+        // Если текст читается слева направо, его вектор (cos(angle), sin(angle))
+        
+        // Простая эвристика: Сравниваем угол дороги и угол камеры
+        let camAngle = atan2(toCam.z, toCam.x);
+        let deltaAngle = camAngle - angle;
+        
+        // Нормализация угла (-PI to PI)
+        while (deltaAngle > PI) deltaAngle -= TWO_PI;
+        while (deltaAngle < -PI) deltaAngle += TWO_PI;
+
+        // Если разница углов по модулю > 90 градусов, текст "убегает" от нас или перевернут
+        // нужно развернуть его на 180
+        if (abs(deltaAngle) > HALF_PI) {
+            angle += PI;
+        }
+
+        rotateY(-angle); // Поворот вокруг вертикальной оси (align with road)
+        rotateX(HALF_PI); // Поворот вокруг X, чтобы "положить" текст на землю
+        
+        // Стилизация текста
+        textAlign(CENTER, CENTER);
+        textSize(14); // Размер шрифта можно скейлить от зума, если нужно
+        
+        // Рисуем текст (без плашки, чтобы выглядело как разметка, или с плашкой)
+        // fill(255); 
+        // Если нужна обводка для контраста на асфальте:
+        fill(255);
+        noStroke();
+        
+        // Опционально: тень для читаемости
+        push();
+        translate(1, 1, -1); // Тень чуть ниже
+        fill(0, 150);
+        text(this.name, 0, 0);
+        pop();
+
+        text(this.name, 0, 0);
+        
+        pop();
+    }
+
+    // Вычисляет позицию и угол наклона текста на основе ВИДИМЫХ точек
+    calculateLabelTransform() {
+        let visiblePoints = [];
+        let avgX = 0, avgZ = 0;
+        
+        // 1. Собираем точки, попадающие в (расширенный) экран
+        // Используем screenX/Y/Z p5.js
+        for (let p of this.points) {
+            let sx = screenX(p.x, p.y, p.z);
+            let sy = screenY(p.x, p.y, p.z);
+            
+            // Большой паддинг, чтобы учитывать сегменты, уходящие за экран
+            if (sx > -200 && sx < width + 200 && sy > -200 && sy < height + 200) {
+                visiblePoints.push(p);
+                avgX += p.x;
+                avgZ += p.z;
+            }
+        }
+
+        // Если видимых точек слишком мало, считаем дорогу невидимой для подписи
+        if (visiblePoints.length < 3) return null;
+
+        // 2. Центроид (средняя точка видимого участка)
+        avgX /= visiblePoints.length;
+        avgZ /= visiblePoints.length;
+        
+        // Высота (Y) берется средней, или константной, если дорога плоская
+        let avgY = visiblePoints[0].y; 
+
+        let centerPos = createVector(avgX, avgY, avgZ);
+
+        // 3. Вычисление угла дороги (PCA / Ковариация)
+        // Это позволяет найти ось "вытянутости" облака видимых точек
+        // независимо от того, как они соединены в массиве.
+        let covXX = 0;
+        let covXZ = 0;
+        let covZZ = 0;
+
+        for (let p of visiblePoints) {
+            let dx = p.x - avgX;
+            let dz = p.z - avgZ;
+            covXX += dx * dx;
+            covXZ += dx * dz;
+            covZZ += dz * dz;
+        }
+
+        // Формула угла главной оси облака точек
+        // 0.5 * atan2(2 * covXY, varX - varY)
+        let angle = 0.5 * atan2(2 * covXZ, covXX - covZZ);
+
+        return { pos: centerPos, angle: angle };
+    }
+}
+/*
+class Road extends Area {
+    constructor(name, points) {
         super(name, points, roadClr); // roadClr должна быть определена глобально
         this.calculateRoadCenter();
         
@@ -680,7 +847,7 @@ class Road extends Area {
         
         pop();
     }
-}
+}*/
 
 class Sidewalk {
     constructor(points) {
