@@ -465,12 +465,12 @@ class Road extends Area {
         this.labelUpdateInterval = 10; // Обновлять позицию каждые N кадров
     }
     
-    calculateRoadCenter() {
+    calculateRoadCenter() {/*
         let center = createVector(0, 0, 0);
         if (this.points.length === 0) return;
         for (let point of this.points) center.add(point);
         center.div(this.points.length);
-        this.road_center = center;
+        this.road_center = center;*/
     }
     
     show() {
@@ -478,11 +478,11 @@ class Road extends Area {
         
         // Проверка зума и наличия имени
         if ((zoom >= 1.5) && this.name && this.name.length > 0) {
-            this.drawRoadLabel();
+            //this.drawRoadLabel();
         }
     }
     
-    drawRoadLabel() {
+    drawRoadLabel() {/*
         // 1. Проверяем кэш
         if (frameCount > this.cacheValidUntil || !this.cachedLabelData) {
             this.cachedLabelData = this.calculateLabelTransform();
@@ -561,11 +561,11 @@ class Road extends Area {
 
         text(this.name, 0, 0);
         
-        pop();
+        pop();*/
     }
 
     // Вычисляет позицию и угол наклона текста на основе ВИДИМЫХ точек
-    calculateLabelTransform() {
+    calculateLabelTransform() {/*
         let visiblePoints = [];
         let avgX = 0, avgZ = 0;
         
@@ -615,7 +615,7 @@ class Road extends Area {
         let angle = 0.5 * atan2(2 * covXZ, covXX - covZZ);
 
         return { pos: centerPos, angle: angle };
-    }
+    }*/
 }
 /*
 class Road extends Area {
