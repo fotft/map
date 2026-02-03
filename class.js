@@ -2,7 +2,7 @@ class Alley extends Area {
     constructor(name, points) {
         super(name, points, alleyClr);
     }
-}
+} 
 
 class Building extends Area3D {
     constructor(address, name, details) {
