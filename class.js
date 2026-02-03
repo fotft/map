@@ -847,7 +847,7 @@ class Road extends Area {
         
         pop();
     }
-}*/
+}
 
 class Sidewalk {
     constructor(points) {
