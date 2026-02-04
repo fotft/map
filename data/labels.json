@@ -223,7 +223,11 @@
         { "address": "", "name": "Военная часть\nсил Горгвардии 1", "type": "police", "level": 1, "point": [-322, 8, -1261] },
         { "address": "", "name": "КПП ВЧСГ 1", "type": "police", "level": 2, "point": [-398, 8, -1281] },
         { "address": "", "name": "Трансформаторная\nподстанция", "type": "factory", "level": 3, "point": [-991, 8, 27] },
-        
+
+        { "address": "", "name": "Бризтоль", "type": "bar", "level": 2, "point": [-1110, 8, -133] },
+        { "address": "", "name": "Софийский собор", "type": "church", "level": 2, "point": [-1240, 8, -135] },
+        { "address": "", "name": "Министерство\nсоциального развития\nСерверного Края", "type": "flag", "level": 2, "point": [-1440, 8, -74] },
+        { "address": "", "name": "Сретенский собор", "type": "church", "level": 2, "point": [-1292, 8, -316] },
         
         { "address": "", "name": "Центральное\nгородское общежитие\nжелезнодорожников", "type": "hotel", "level": 1, "point": [168, 8, -485] }
         
