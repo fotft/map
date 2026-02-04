@@ -211,7 +211,7 @@
         
         { "address": "", "name": "Монумент\nПобеды", "type": "landmark", "level": 3, "point": [-673, 8, -729] },
         { "address": "", "name": "Домашнее мясо", "type": "shop", "level": 2, "point": [-71, 8, -425] },
-        { "address": "", "name": "Спаун", "type": "landmark", "level": 1, "point": [8, 8, -317] },
+        { "address": "", "name": "Спаун\nСерверного Края", "type": "landmark", "level": 1, "point": [8, 8, -317] },
         { "address": "", "name": "Торговый дом\nИмпериал", "type": "business", "level": 2, "point": [-178, 8, -235] },
         { "address": "", "name": "Телеграф", "type": "business", "level": 1, "point": [-171, 8, -193] },
         { "address": "", "name": "Городская\nелка", "type": "fir", "level": 4, "point": [859, 8, -903] },
