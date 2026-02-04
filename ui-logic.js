@@ -131,8 +131,8 @@ window.updateSearchSuggestions = function(query) {
         return a.name.length - b.name.length;
     });
 
-    // Ограничиваем 10 результатами
-    const suggestions = window.currentSearchResults.slice(0, 10);
+    // He Ограничиваем 10 результатами
+    const suggestions = window.currentSearchResults;
 
     if (suggestions.length > 0) {
         resultsDiv.innerHTML = suggestions.map((s, index) => {
