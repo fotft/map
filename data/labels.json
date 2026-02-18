@@ -5,7 +5,7 @@
         { "address": "", "name": "Новая почта", "type": "post", "level": 2, "point": [0, 8, -443] },
         { "address": "", "name": "Сакура", "type": "restaurant", "level": 4, "point": [17, 8, -415] },
         { "address": "", "name": "Поли", "type": "fastfood", "level": 8, "point": [17, 8, -435] },
-        { "address": "", "name": "Fire City", "type": "restaurant", "level": 8, "point": [8, 15, -460] },
+        { "address": "", "name": "Fire City", "type": "restaurant", "level": 8, "point": [8, 15, -460] }, 
         { "address": "", "name": "Столовая", "type": "restaurant", "level": 3, "point": [-61, 8, -359] },
         { "address": "", "name": "Новая почта", "type": "post", "level": 1.5, "point": [-61, 8, -327] },
         { "address": "", "name": "Subway", "type": "cafe", "level": 1, "point": [-128, 8, -291] },
