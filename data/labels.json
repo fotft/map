@@ -169,8 +169,7 @@
         { "address": "", "name": "Золотые Ворота", "type": "landmark", "level": 1, "point": [-1062, 8, -110] },
         { "address": "", "name": "Городской\nмузей\nархитектуры", "type": "museum", "level": 2, "point": [-485, 8, -90] },
 
-        { "address": "", "name": "Музей истории\nсервера", "type": "museum", "level": 6, "point": [-129, 8, -61] },
-        { "address": "", "name": "Колонна", "type": "landmark", "level": 1, "point": [-116, 8, -54] },
+        { "address": "", "name": "Музей истории\nсервера", "type": "museum", "level": 1, "point": [-129, 8, -61] },
         
         { "address": "", "name": "METROOO", "type": "supermarket", "level": 3, "point": [-703, 40, -795] },
         { "address": "", "name": "Кафе", "type": "cafe", "level": 1, "point": [-728, 8, -931] },
