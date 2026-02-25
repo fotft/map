@@ -230,7 +230,7 @@
         { "address": "", "name": "Андреевская\nцерковь", "type": "church", "level": 1, "point": [-1643, 8, -105] },
         { "address": "", "name": "Замок Ричарда", "type": "landmark", "level": 2, "point": [-1680, -18, -210] },
         { "address": "", "name": "Десятинная\nцерковь", "type": "church", "level": 2, "point": [-1617, 8, -169] },
-        { "address": "", "name": "Культурный\nцентр \"Дыгог\"", "type": "business", "level": 2, "point": [1567, 8, -75] },
+        { "address": "", "name": "Культурный\nцентр \"Дыгог\"", "type": "business", "level": 2, "point": [-1567, 8, -75] },
         
         { "address": "", "name": "Центральное\nгородское общежитие\nжелезнодорожников", "type": "hotel", "level": 1, "point": [168, 8, -485] }
         
