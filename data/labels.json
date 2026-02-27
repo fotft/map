@@ -70,7 +70,6 @@
         { "address": "", "name": "Гимназия N1", "type": "school", "level": 1, "point": [-693, 8, -14]},
         { "address": "", "name": "Фиалка", "type": "hypermarket", "level": 1, "point": [-754, 8, 36]},
         { "address": "", "name": "Музей Конституции\nСерверного Края", "type": "museum", "level": 3, "point": [-834, 8, -20]},
-        { "address": "", "name": "Интим-шоп", "type": "shop", "level": 1, "point": [-874, 8, -8]},
         { "address": "", "name": "Мечта", "type": "shop", "level": 2, "point": [-875, 8, 55]},
         { "address": "", "name": "Олесия", "type": "sports", "level": 2, "point": [-996, 8, 101]},
         { "address": "", "name": "Фолинок", "type": "cafe", "level": 4, "point": [-972, 8, 101]},
